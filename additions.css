@@ -1,0 +1,605 @@
+/* Requested additions; original styling remains in style.css. */
+.event-sample-note{margin:0 0 2rem;padding:1rem 1.3rem;border-left:3px solid #bca565;background:rgba(255,255,255,.5);font-size:.9rem;color:#213d56;}
+.event-card{display:flex;flex-direction:column;gap:.75rem;position:relative;}
+.event-tag{align-self:flex-start;border:1px solid #bca565;border-radius:100px;padding:.2rem .8rem;font-size:.75rem;color:#354c61;}
+.event-type{font-size:.75rem!important;letter-spacing:.07em;color:#53788a!important;margin:0!important;}
+.event-card .card-title{line-height:1.6;min-height:3.2em;}
+.event-card>p{margin:0;}
+.event-meta{display:grid;grid-template-columns:3em 1fr;gap:.4rem;margin:1rem 0;color:#213d56;font-size:.9rem;}
+.event-meta dt{font-weight:700;}.event-meta dd{margin:0;}
+.event-preparing{margin-top:auto!important;padding-top:1rem;border-top:1px solid rgba(33,61,86,.18);font-size:.85rem;}
+.banner-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;}
+.notice-banner{margin:0;}.notice-banner img{display:block;width:100%;height:auto;border:1px solid rgba(188,165,101,.65);border-radius:10px;box-shadow:0 6px 24px rgba(20,54,76,.1);}.notice-banner figcaption{font-size:.8rem;margin-top:.7rem;color:#354c61;}
+@media(max-width:767px){.banner-grid{grid-template-columns:1fr;gap:28px;}.event-card .card-title{min-height:0;}}
+
+.is-night .notice-banner figcaption{color:#e8f2fa;}
+
+.banner-placeholders{grid-template-columns:repeat(3,minmax(0,1fr));}.banner-placeholder{aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:#dedede;border:1px solid #c6c6c6;border-radius:8px;color:#555;font-size:.95rem;text-align:center;padding:16px;}@media(max-width:767px){.banner-placeholders{grid-template-columns:1fr;}}
+
+/* Approved watercolor illustrations: preserve transparent edges and full composition. */
+img[src*="/unified/"]{object-fit:contain;}
+.nodes img[src*="/unified/"]{object-fit:contain!important;}
+@media(min-width:1200px){.hub .hub-scene[src*="/unified/"]{height:112px;object-fit:contain;padding:5px 18px;}.hub .nodes img[src*="/unified/"]{padding:6px;}}
+
+/* Banners belong to their event cards. */
+.event-card>.banner-placeholder{width:100%;box-sizing:border-box;flex:none;margin-bottom:.4rem;}
+
+.workshop-dates{list-style:none;padding:0;margin:1rem 0 0;display:grid;gap:.6rem;}.workshop-dates li{display:flex;flex-wrap:wrap;gap:.2rem 1rem;}.workshop-dates strong{min-width:8em;}.workshop-dates time{white-space:nowrap;}
+
+/* Supplied event artwork: preserve original aspect ratio and allow full-size viewing. */
+.event-banner{display:block;width:100%;margin-bottom:.5rem;border-radius:6px;overflow:hidden;outline-offset:4px;}.event-banner img{display:block;width:100%;height:auto;}.event-banner:focus-visible{outline:3px solid #bca565;}.event-meta dd{min-width:0;overflow-wrap:anywhere;}
+
+.event-title-tail{display:inline-block;}
+
+/* Larger event banners: two columns on desktop, one on mobile. */
+.event-list{grid-template-columns:repeat(2,minmax(0,1fr));}
+@media(max-width:767px){.event-list{grid-template-columns:minmax(0,1fr);}}
+
+/* Event information: compact heading group and labelled format row. */
+.event-heading{display:flex;flex-direction:column;gap:.4rem;}.event-card .event-heading .card-title{min-height:0;margin:0;}.event-card .event-heading p{margin:0;line-height:1.8;}
+.event-meta{grid-template-columns:4.5em minmax(0,1fr);gap:.65rem 1rem;}
+.event-actions{margin-top:auto;padding-top:1rem;}.event-apply{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:.4rem .75rem;width:100%;padding:1rem;border:0;border-radius:8px;background:#ac472f;color:#fff;font:700 1rem/1.5 var(--sans);text-align:center;text-decoration:none;box-shadow:0 4px 12px rgba(114,47,31,.15);}.event-apply span{font-size:.75rem;border:1px solid rgba(255,255,255,.7);border-radius:4px;padding:.1rem .4rem;}.event-apply:disabled{opacity:1;cursor:not-allowed;}.event-apply[href]:hover{background:#913924;}.event-apply:focus-visible{outline:3px solid #bb9b51;outline-offset:3px;}
+/* Keep the year and day on intentional separate lines. */
+.tl-year,.tl-day{display:block;white-space:nowrap;}.workshop-dates strong{min-width:12em;}
+/* A larger, uncropped peer illustration without the circular plate. */
+.hub .nodes .card:first-child img.vignette-center{width:140px;height:auto;aspect-ratio:auto;border-radius:0;background:transparent;box-shadow:none;object-fit:contain!important;padding:0;}
+@media(min-width:1200px){.hub .nodes .card:first-child{--plate-w:210px;--plate-h:145px;}.hub .nodes .card:first-child img.vignette-center{width:210px;height:145px;}}
+
+.event-card>.event-overview{margin:.35rem 0 0;line-height:1.9;font-size:.95rem;}
+
+.event-apply.event-apply-closed:disabled{background:#dedede;color:#555;box-shadow:none;cursor:not-allowed;}
+
+.event-venue-link{color:inherit;text-decoration:underline;text-decoration-color:#bca565;text-underline-offset:3px;text-decoration-skip-ink:none;}.event-venue-link:hover{text-decoration-thickness:2px;}.event-address{display:block;margin-top:.35rem;font-size:.8rem;font-weight:400;line-height:1.7;}
+
+/* Site-wide navigation at the very top, above the key visual. */
+:root{--global-header-height:80px;}
+.global-header{position:sticky;top:0;z-index:1000;background:#fdfaf3;border-bottom:1px solid rgba(184,161,106,.4);box-shadow:0 2px 12px rgba(23,47,72,.06);}
+.global-header-inner{width:min(100% - 48px,1440px);height:var(--global-header-height);margin:auto;display:flex;align-items:center;justify-content:space-between;gap:32px;}
+.global-brand{display:block;flex:none;width:210px;}.global-brand img{display:block;width:100%;height:auto;}
+.global-nav{display:flex;align-items:center;gap:26px;}.global-nav a{color:#1d3658;font-weight:700;font-size:14px;white-space:nowrap;text-decoration:none;padding:12px 0;}.global-nav a:hover{text-decoration:underline;text-underline-offset:6px;text-decoration-skip-ink:none;}.global-nav .global-contact{background:#1d3658;color:white;padding:11px 20px;border-radius:5px;}
+.hero-nav{display:none;}
+section[id]{scroll-margin-top:calc(var(--global-header-height) + 16px);}
+.global-header .menu{display:none;}
+@media(max-width:1023px){
+ :root{--global-header-height:66px;}.global-header-inner{width:calc(100% - 32px);gap:16px;}.global-brand{width:180px;}.global-nav{display:none;}.global-header .menu{display:block;}
+ .global-header .menu-btn{position:relative;top:auto;right:auto;z-index:1003;display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:5px;background:#1d3658;box-shadow:none;cursor:pointer;list-style:none;}.menu-btn::-webkit-details-marker{display:none;}
+ .global-header .menu-bars,.global-header .menu-bars::before,.global-header .menu-bars::after{width:20px;height:2px;border-radius:2px;background:white;}.global-header .menu-bars{position:relative;}.global-header .menu-bars::before,.global-header .menu-bars::after{content:'';position:absolute;left:0;}.global-header .menu-bars::before{top:-6px;}.global-header .menu-bars::after{top:6px;}.global-header .menu[open] .menu-bars{background:transparent;}.global-header .menu[open] .menu-bars::before{top:0;transform:rotate(45deg);}.global-header .menu[open] .menu-bars::after{top:0;transform:rotate(-45deg);}
+ .global-header .menu-panel{position:fixed;inset:var(--global-header-height) 0 0;z-index:1002;display:flex;flex-direction:column;background:#142b49;padding:24px;overflow-y:auto;overscroll-behavior:contain;}.global-header .menu-panel a{display:flex;align-items:center;min-height:52px;padding:6px;color:#fff;font-size:18px;border-bottom:1px solid rgba(184,161,106,.3);}.global-header .menu-panel .menu-cta{background:#c9b373;color:#142b49;border-radius:5px;justify-content:center;margin:24px 0 0;}.global-header .menu-panel a:first-of-type{margin-top:0;}
+}
+@media print{.global-header{display:none;}}
+
+.global-header .menu-btn{animation:none;}
+
+/* Approved six-item navigation and recruitment-closed information structure. */
+#about{scroll-margin-top:calc(var(--global-header-height) + 16px);}
+.global-nav{gap:20px;}.global-brand{width:185px;}.global-nav a{font-size:13px;}
+.recruitment-closed{padding:1rem 1.2rem;border:1px solid rgba(184,161,106,.6);border-radius:6px;font-weight:500;line-height:1.8;margin:1.5rem 0;}
+.sec-target .checklist{margin-top:24px;}
+@media(max-width:1199px){.global-nav{gap:14px;}.global-header-inner{gap:20px;}.global-brand{width:165px;}.global-nav a{font-size:12px;}.global-nav .global-contact{padding:10px 14px;}}
+@media(max-width:1023px){.global-brand{width:180px;}}
+
+/* Align theme titles and rules despite different artwork proportions. */
+.theme-head{min-height:100px;box-sizing:border-box;}.theme-head .theme-icon{height:84px;object-fit:contain;}.theme-head .theme-name{margin:0;}
+
+.recruitment-closed p{margin:0;}.recruitment-closed p+p{margin-top:.6rem;}.recruitment-closed a{color:inherit;text-decoration:underline;text-underline-offset:3px;text-decoration-skip-ink:none;}
+
+/* Prominent participation announcement at the start of About FUNADE. */
+.about-participation-notice{margin:0 0 3rem;padding:28px 32px;background:#fff7e5;border:2px solid #b9a064;border-left:7px solid #b9a064;border-radius:10px;color:#1d3658;box-shadow:0 8px 24px rgba(29,54,88,.08);}
+.about-participation-notice .about-notice-label{font-size:.85rem;letter-spacing:.08em;font-weight:700;color:#735e2c;margin:0 0 .7rem;}
+.about-participation-notice h3{font-size:clamp(20px,2.2vw,28px);line-height:1.6;color:#1d3658;margin:0 0 1rem;}.about-participation-notice p{margin:.65rem 0;line-height:1.9;}
+.about-notice-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:1.4rem;}.about-notice-actions a{display:inline-flex;align-items:center;justify-content:center;padding:12px 20px;border-radius:6px;background:#1d3658;color:#fff;font-weight:700;font-size:.95rem;text-decoration:none;}.about-notice-actions a:first-child{background:#fff;color:#1d3658;border:1px solid #1d3658;}.about-notice-actions a:hover{box-shadow:0 3px 12px rgba(29,54,88,.2);}.about-notice-actions a:focus-visible{outline:3px solid #b9a064;outline-offset:3px;}
+@media(max-width:767px){.about-participation-notice{padding:20px 18px;margin-bottom:2rem;}.about-notice-actions{flex-direction:column;}.about-notice-actions a{width:100%;box-sizing:border-box;}}
+
+/* Compact notice follows the About introduction. */
+.about-participation-notice{margin:24px 0 36px;padding:24px 28px;border-width:1px;border-left-width:5px;box-shadow:none;}
+.about-participation-notice .about-notice-label{font-size:13px;line-height:1.5;letter-spacing:.04em;margin:0 0 8px;}
+.about-participation-notice h3{font-size:clamp(20px,1.7vw,24px);line-height:1.5;margin:0 0 12px;}
+.about-participation-notice p{font-size:16px;line-height:1.75;margin:8px 0;}
+.about-notice-actions{gap:10px;margin-top:18px;}.about-notice-actions a{font-size:14px;line-height:1.5;padding:11px 18px;}
+@media(max-width:767px){.about-participation-notice{margin:20px 0 28px;padding:20px 18px;}.about-participation-notice p{font-size:15px;line-height:1.75;}.about-notice-actions{gap:8px;margin-top:16px;}}
+/* Participation checklist moved to the light support section: use dark ink. */
+.sec-target .checklist,.sec-target .checklist:hover{background:#FAFDFF;color:#243e5b;}.sec-target .checklist li,.sec-target .checklist .sub{color:#243e5b;}.sec-target .checklist .sub{font-weight:400;}
+
+/* Keep the three headline phrases intact and place brush strokes below the glyphs. */
+.hero-title{font-size:clamp(22px,2.9vw,48px);line-height:1.55;}
+.hero-title-line{display:block;white-space:nowrap;}
+.hero-title .brush{display:inline-block;padding-bottom:.06em;background-position:left bottom;background-size:100% .13em;}
+@media(max-width:767px){.hero-title{font-size:clamp(22px,6.5vw,34px);}}
+
+/* Clean translucent strokes contain no image pixels or letter fragments. */
+.hero-title{width:max-content;max-width:none;font-size:clamp(28px,3.6vw,60px);}
+.hero-title .brush-gold{background-image:linear-gradient(100deg,transparent 0%,rgba(204,167,77,.30) 8%,rgba(204,167,77,.52) 52%,rgba(204,167,77,.22) 93%,transparent 100%);}
+.hero-title .brush-blue{background-image:linear-gradient(100deg,transparent 0%,rgba(93,167,194,.25) 8%,rgba(93,167,194,.44) 52%,rgba(93,167,194,.18) 93%,transparent 100%);}
+@media(max-width:767px){.hero-title{font-size:clamp(25px,7.4vw,42px);}}
+
+/* Highlight words with readable ink gradients instead of underlines. */
+.hero-title .brush{padding-bottom:0;background:none;color:#17395a;text-shadow:none;}
+@supports ((background-clip:text) or (-webkit-background-clip:text)){
+ .hero-title .brush{background-size:100% 100%;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;}
+ .hero-title .brush-gold{background-image:linear-gradient(110deg,#17395a 0%,#48505a 40%,#936a2c 100%);}
+ .hero-title .brush-blue{background-image:linear-gradient(110deg,#17395a 0%,#235c80 50%,#21776f 100%);}
+}
+@media(forced-colors:active){.hero-title .brush{background:none;color:CanvasText;-webkit-text-fill-color:CanvasText;}}
+
+/* Consistent year/date lines prevent isolated month and day characters. */
+.timeline .tl-date{line-height:1.55;}
+.timeline .tl-year{font-size:17px;margin-bottom:2px;}
+.timeline .tl-day{font-size:20px;letter-spacing:0;}
+.timeline .tl-range{font-size:18px;}
+@media(min-width:768px){.timeline .card{grid-template-columns:minmax(240px,23%) 1fr;}}
+
+/* Emphasize month/day while keeping the year as a quiet label. */
+.timeline .tl-day,.timeline .tl-range{font-size:28px;font-weight:700;line-height:1.45;}
+.timeline .tl-range{white-space:normal;}
+.timeline .tl-range span{display:inline-block;white-space:nowrap;}
+@media(min-width:768px){.timeline .card{grid-template-columns:minmax(280px,26%) 1fr;}}
+
+/* Use the desktop artwork on portrait screens without cropping out the fleet. */
+@media (max-aspect-ratio:13/10) and (max-width:1199px), (max-width:767px){
+ .hero-art{background-image:url('assets/img/backgrounds/hero-day-no-stars-v2.jpg');background-size:100% auto;background-position:center bottom;background-color:#f7f2e7;}
+ .is-night .hero-art{background-image:url('assets/img/backgrounds/hero-night-navy-paper-v7.jpg');}
+ .hero-inner{padding-bottom:min(56vw,340px);}
+}
+.workshop-dates{width:fit-content;max-width:100%;}
+.workshop-dates li{display:grid;grid-template-columns:10.5em auto;justify-content:start;gap:6px 18px;align-items:baseline;}
+.workshop-dates strong{min-width:0;}
+@media(max-width:380px){.workshop-dates li{grid-template-columns:1fr;gap:2px;}}
+.tier-deep .faq-note{border:0;border-radius:0;box-shadow:none;background:none;padding:0;margin-top:24px;}
+
+/* Compact workshop rows on desktop and mobile; keep the schedule note unframed. */
+.timeline .workshop-dates{display:grid;row-gap:4px;margin-top:12px;line-height:1.6;width:fit-content;}
+.timeline .workshop-dates li{grid-template-columns:10em auto;column-gap:14px;row-gap:2px;line-height:1.6;margin:0;padding:0;}
+.timeline .workshop-dates strong,.timeline .workshop-dates time{line-height:1.6;}
+#schedule .note{border:0;border-radius:0;background:none;box-shadow:none;padding:0;margin-top:24px;}
+@media(max-width:380px){.timeline .workshop-dates li{grid-template-columns:1fr;}}
+
+/* Fade the portrait text area into an enlarged crop of the desktop fleet. */
+@media (max-aspect-ratio:13/10) and (max-width:1199px), (max-width:767px){
+ .hero-art{background-image:linear-gradient(180deg,#f7f2e7 0%,#f7f2e7 32%,rgba(247,242,231,.98) 43%,rgba(247,242,231,.80) 55%,rgba(247,242,231,.25) 72%,rgba(247,242,231,0) 88%),url('assets/img/backgrounds/hero-day-no-stars-v2.jpg');background-size:100% 100%,auto 75%;background-position:center,right bottom;background-repeat:no-repeat;}
+ .is-night .hero-art{background-image:linear-gradient(180deg,#f2efe6 0%,#f2efe6 32%,rgba(242,239,230,.96) 43%,rgba(242,239,230,.72) 55%,rgba(242,239,230,.2) 72%,transparent 88%),url('assets/img/backgrounds/hero-night-navy-paper-v7.jpg');}
+}
+
+/* Carry the desktop's left-hand paper and watercolor into the portrait title area. */
+@media (max-aspect-ratio:13/10) and (max-width:1199px), (max-width:767px){
+ .hero-art::before{content:'';position:absolute;inset:0 0 24%;background:url('assets/img/backgrounds/hero-day-no-stars-v2.jpg') left top / auto 100% no-repeat;opacity:.55;-webkit-mask-image:linear-gradient(180deg,#000 0%,#000 48%,rgba(0,0,0,.65) 73%,transparent 100%);mask-image:linear-gradient(180deg,#000 0%,#000 48%,rgba(0,0,0,.65) 73%,transparent 100%);pointer-events:none;}
+ .is-night .hero-art::before{background-image:url('assets/img/backgrounds/hero-night-navy-paper-v7.jpg');opacity:.45;}
+}
+
+/* 2026-11-12 reviewed UI: shared type scale and phrase-aware wrapping. */
+:root{--text-body:16px;--text-note:14px;--text-small-heading:20px;--text-card-heading:24px;--text-section-heading:36px;}
+body{font-size:var(--text-body);} .section .lead,.section .card>p{font-size:16px;line-height:1.85;word-break:auto-phrase;text-wrap:pretty;}
+.section h2{font-size:clamp(26px,2.8vw,36px);line-height:1.5;word-break:auto-phrase;text-wrap:balance;}
+.section h3{line-height:1.5;word-break:auto-phrase;text-wrap:balance;}
+.phrase{display:inline-block;max-width:100%;} .section h2 .phrase+.phrase{margin-left:.15em;}
+.note,.banner-help,.event-address,.event-meta small,.nodes .card p,.hero-sub,.sched-asof,.contact-subject{font-size:14px;line-height:1.75;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;}
+.concept-heading{font:700 20px/1.5 var(--sans);margin:26px 0 18px;}
+.seminar-announcement{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 18px;padding:18px 24px;background:#17395a;color:#fff;font-size:16px;line-height:1.6;text-decoration:none;}
+.seminar-announcement>span:first-child,.seminar-announcement>b{color:#ead18e;} .seminar-announcement:hover{background:#244b6d;}
+.banner-help{margin:0 0 16px;color:#243e5b;}.event-card .event-heading h3{font-size:24px;line-height:1.5;}.event-heading{gap:6px;}.event-card>.event-overview{font-size:16px;line-height:1.85;}.event-meta{font-size:16px;line-height:1.75;gap:10px 16px;}
+.event-apply[href]{background:#17395a;box-shadow:0 4px 12px #17395a22;}.event-apply[href] span{color:#ead18e;border:0;font-size:20px;}.event-apply[href]:hover{background:#264e70;}
+/* Full-width body copy; illustrations remain complete, small, and beside headings. */
+.sec-what .card,.sec-pain .card,.sec-benefit .card{display:grid;grid-template-columns:minmax(0,1fr) 88px;align-content:start;align-items:center;gap:10px 14px;min-height:0;}
+.sec-what .card>.step-label{grid-column:1;grid-row:1;margin:0;font-size:14px;}.sec-what .card>.card-title{grid-column:1;grid-row:2;margin:0;font-size:24px;}
+.sec-what .card>.vignette{grid-column:2;grid-row:1 / 3;}
+.sec-pain .card>.card-head,.sec-benefit .card>.card-head{grid-column:1;grid-row:1;min-width:0;}
+.sec-pain .card>.vignette,.sec-benefit .card>.vignette{grid-column:2;grid-row:1;}
+.sec-what .card>p:not(.step-label),.sec-pain .card>p,.sec-benefit .card>p{grid-column:1 / -1;grid-row:3;min-width:0;margin:0;order:initial;width:100%;}
+.sec-pain .card>p,.sec-benefit .card>p{grid-row:2;}
+.sec-what .card>.vignette,.sec-pain .card>.vignette,.sec-benefit .card>.vignette{width:88px;height:88px;min-width:0;max-width:100%;margin:0;object-fit:contain;order:initial;aspect-ratio:auto;}
+.sec-pain .card-title,.sec-benefit .card-title{font-size:20px;line-height:1.5;}.sec-benefit .card-tall{min-height:0;}
+.participation-cost{margin-top:24px;}
+.theme .action-label{margin-top:20px;}.theme .arrow{margin-top:6px;}
+/* Semantic dates table; narrow, aligned, and not stretched across the card. */
+.timeline table.workshop-dates{display:table;border-collapse:collapse;width:auto;max-width:100%;margin:12px 0 0;font-size:16px;line-height:1.6;}
+.workshop-dates th,.workshop-dates td{padding:3px 0;text-align:left;vertical-align:top;}.workshop-dates th{padding-right:22px;font-weight:500;}.workshop-dates td{font-weight:700;white-space:nowrap;}
+.tl-next{display:none;align-self:flex-start;padding:4px 10px;border-radius:20px;background:#17395a;color:#fff;font:700 14px/1.4 var(--sans);}.is-next .tl-next{display:inline-block;}.timeline .card.is-next{box-shadow:0 0 0 2px #ddc17c;}
+@media(min-width:1200px){.hub .node-txt{position:relative;z-index:1;background:#102b48;border-radius:6px;padding:5px 6px;}.hub .nodes .card:first-child{--node-w:390px;}}
+/* Navigation state follows scrolling. */
+.global-nav a[aria-current="location"]{text-decoration:underline;text-decoration-color:#bc9e56;text-underline-offset:7px;text-decoration-thickness:2px;}
+
+.contact-button-label{display:none;}.contact-value{display:inline;}.contact-subject{margin-top:12px;color:#dce5ef;}
+.back-to-top{position:fixed;right:20px;bottom:20px;z-index:900;display:none;flex-direction:column;align-items:center;gap:3px;padding:10px 14px;background:#17395a;color:#fff;border:1px solid #ccb477;border-radius:8px;text-decoration:none;font-size:14px;box-shadow:0 3px 14px #0003;}.back-to-top.is-visible{display:flex;}
+.banner-lightbox{width:min(94vw,1400px);max-width:none;padding:48px 12px 12px;border:0;border-radius:10px;background:#142d48;box-shadow:0 16px 60px #0006;}.banner-lightbox::backdrop{background:#071526dd;}.banner-lightbox img{display:block;width:100%;height:auto;max-height:82vh;object-fit:contain;}.lightbox-close{position:absolute;right:8px;top:4px;width:40px;height:40px;border:0;border-radius:6px;background:#fff;color:#17395a;font-size:28px;cursor:pointer;}
+@media(max-width:767px){
+ .section{padding-top:44px;padding-bottom:44px;}.section h2{font-size:26px;line-height:1.5;}.section .lead{margin:16px 0 24px;line-height:1.8;}.section .card>p{line-height:1.8;}
+ .seminar-announcement{justify-content:flex-start;padding:16px 20px;font-size:14px;gap:5px 10px;}.seminar-announcement>span:nth-of-type(2){flex-basis:100%;}
+ .sec-what .card,.sec-benefit .card{padding:20px;grid-template-columns:minmax(0,1fr) 72px;gap:10px 12px;}.sec-what .card>.vignette,.sec-benefit .card>.vignette{width:72px;height:72px;}.sec-what .card>.card-title{font-size:22px;}.sec-benefit .card-title{font-size:20px;}
+ .hub{height:auto;margin-top:20px;}.hub-center{width:100%;margin-bottom:16px;padding:18px;}.hub .nodes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}.hub .nodes .card{padding:16px 10px;gap:8px;}.hub .nodes .card-title{font-size:16px;}.hub .nodes .card p{font-size:14px;line-height:1.6;}.hub .nodes .vignette-center,.hub .nodes .card:first-child img.vignette-center{width:80px;height:66px;object-fit:contain;}.hub .node-txt{width:100%;}.hub .nodes .card:last-child{grid-column:1 / -1;max-width:200px;justify-self:center;width:100%;}
+ .event-card .event-heading h3{font-size:22px;}.event-meta{grid-template-columns:4em minmax(0,1fr);gap:8px 10px;}.event-address,.event-meta small{font-size:14px;}
+ .contact-ways{display:grid;gap:12px;}.contact-ways li{display:block;min-width:0;}.contact-k{display:none;}.contact-ways a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;width:100%;padding:12px 8px;background:#f8f5eb;color:#17395a;border:1px solid #c8ab67;border-radius:7px;text-align:center;text-decoration:none;overflow-wrap:anywhere;}.contact-button-label{display:block;font-size:16px;font-weight:700;}.contact-value{font-size:14px;}.contact-subject{font-size:14px;}.contact{padding:20px;}.back-to-top{right:12px;bottom:12px;padding:8px 10px;}.back-to-top span{font-size:14px;}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto;}*,*::before,*::after{animation:none!important;transition:none!important;}}
+@media(max-width:767px){
+ .global-header details:not([open]) .menu-panel{display:none;}
+}
+.date-part{display:inline-block;white-space:nowrap;}
+/* Final readable scale: 14 / 16 / 20 / 24 / 28 / 36px (hero is fluid). */
+.global-nav a{font-size:14px;}.global-nav{gap:16px;}.section .eyebrow,.step-label,.label,.banner-help,.event-meta small,.event-address,.hero-sub,.about-participation-notice .about-notice-label{font-size:14px;}
+.checklist li{font-size:16px;}.checklist .card-title,.contact-h,.theme-name{font-size:24px;}.sec-what .card>.step-label{font-size:14px;}.about-participation-notice p{font-size:16px;}.about-participation-notice h3{font-size:24px;}
+@media(max-width:767px){.global-nav a{font-size:14px;}.section h2{font-size:28px;}.checklist{padding:20px;}.checklist .card-title{font-size:24px;}.checklist li{font-size:16px;}.about-participation-notice h3{font-size:20px;}.about-participation-notice p{font-size:16px;}.theme-head{min-height:88px;}}
+html{scroll-behavior:auto;}
+.hero-fleet{mask-image:linear-gradient(180deg,transparent,#000 8%,#000 92%,transparent);-webkit-mask-image:linear-gradient(180deg,transparent,#000 8%,#000 92%,transparent);}
+.schedule-jump{display:inline-flex;align-items:center;min-height:44px;margin-bottom:20px;color:#ead18e;font-size:16px;text-underline-offset:4px;}
+@media(min-width:768px){.back-to-top,.back-to-top.is-visible{display:none;}}
+@media(max-width:767px){.back-to-top{width:44px;height:44px;justify-content:center;padding:0;font-size:20px;}.back-to-top span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}}
+/* Collapse legacy fractional text sizes into the reviewed scale. */
+.section .card p,.section .contact-org{font-size:16px;}
+.section .card .step-label,.section .card .label,.section .checklist .sub,.contact-agent,.hub-center span{font-size:14px;}
+.sec-themes .card .theme-name{font-size:24px;}.sec-themes .card .arrow{font-size:16px;}.section .num{font-size:14px;}.hub-center strong{font-size:24px;}
+.section .card h3{font-size:24px;}.sec-pain .card h3,.sec-benefit .card h3{font-size:20px;}.hub .nodes .card p{font-size:14px;}.hub .nodes .card h3{font-size:20px;}
+.hero-brand span{font-size:16px;}.global-header .menu-panel a{font-size:20px;}
+@media(max-width:767px){.sec-what .card h3{font-size:24px;}.event-card .event-heading h3{font-size:20px;}.hub .nodes .card p{font-size:14px;}.hub .nodes .card h3{font-size:16px;}.section .theme-name{font-size:24px;}}
+
+/* All support-role illustrations use the same unframed presentation. */
+.hub .nodes .card img.vignette-center{border:0;border-radius:0;background:transparent;box-shadow:none;object-fit:contain!important;}
+
+/* Consistent, readable illustration sizes within each section. */
+.sec-what .card,.sec-pain .card,.sec-benefit .card{grid-template-columns:minmax(0,1fr) 128px;}
+.sec-what .card>.vignette,.sec-pain .card>.vignette,.sec-benefit .card>.vignette{width:128px;height:128px;min-width:0;max-width:100%;object-fit:contain;}
+.sec-flow .steps .card>.vignette{flex:0 0 144px;width:144px;height:120px;min-width:0;max-width:100%;object-fit:contain;padding:0;background:transparent;box-shadow:none;border-radius:0;}
+.theme-head .theme-icon{width:108px;height:100px;object-fit:contain;flex:0 0 108px;margin:0;}
+.hub .nodes .card picture{display:block;flex:none;}
+.hub .nodes .card img.vignette-center,.hub .nodes .card:first-child img.vignette-center{width:144px;height:108px;padding:0;max-width:100%;margin:0 auto;aspect-ratio:auto;object-fit:contain!important;}
+@media(min-width:1200px){
+ .hub{--plate-w:160px;--plate-h:112px;--node-w:346px;}
+ .hub .nodes .card:first-child{--plate-w:160px;--plate-h:112px;--node-w:346px;}
+ .hub .nodes .card img.vignette-center,.hub .nodes .card:first-child img.vignette-center{width:160px;height:112px;}
+}
+@media(max-width:767px){
+ .sec-what .card,.sec-pain .card,.sec-benefit .card{grid-template-columns:minmax(0,1fr) 112px;}
+ .sec-what .card>.vignette,.sec-pain .card>.vignette,.sec-benefit .card>.vignette{width:112px;height:112px;}
+ .sec-flow .steps .card>.vignette{flex-basis:132px;width:132px;height:110px;}
+ .theme-head .theme-icon{width:104px;height:96px;flex-basis:104px;}
+ .hub .nodes .card img.vignette-center,.hub .nodes .card:first-child img.vignette-center{width:132px;height:100px;}
+}
+/* Feather only the outer edge; the illustration itself stays sharp. */
+.sec-what .vignette,.sec-pain .vignette,.sec-benefit .vignette,.sec-flow .vignette,.theme-icon,.hub img.vignette-center,.hub-scene{
+ -webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.08) 3%,rgba(0,0,0,.32) 6%,rgba(0,0,0,.68) 10%,rgba(0,0,0,.92) 14%,#000 18%,#000 82%,rgba(0,0,0,.92) 86%,rgba(0,0,0,.68) 90%,rgba(0,0,0,.32) 94%,rgba(0,0,0,.08) 97%,transparent 100%),linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.08) 3%,rgba(0,0,0,.32) 6%,rgba(0,0,0,.68) 10%,rgba(0,0,0,.92) 14%,#000 18%,#000 82%,rgba(0,0,0,.92) 86%,rgba(0,0,0,.68) 90%,rgba(0,0,0,.32) 94%,rgba(0,0,0,.08) 97%,transparent 100%);
+ -webkit-mask-composite:source-in;
+ mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.08) 3%,rgba(0,0,0,.32) 6%,rgba(0,0,0,.68) 10%,rgba(0,0,0,.92) 14%,#000 18%,#000 82%,rgba(0,0,0,.92) 86%,rgba(0,0,0,.68) 90%,rgba(0,0,0,.32) 94%,rgba(0,0,0,.08) 97%,transparent 100%),linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.08) 3%,rgba(0,0,0,.32) 6%,rgba(0,0,0,.68) 10%,rgba(0,0,0,.92) 14%,#000 18%,#000 82%,rgba(0,0,0,.92) 86%,rgba(0,0,0,.68) 90%,rgba(0,0,0,.32) 94%,rgba(0,0,0,.08) 97%,transparent 100%);
+ mask-composite:intersect;
+}
+
+/* Keep dark cards dark on hover, so nested text cannot disappear during inversion. */
+@media(hover:hover){
+ .tier-deep .card:hover{background:#173b59;color:#f5f8fc;}
+ .tier-deep .card:hover .card-title,.tier-deep .card:hover strong,.faq-item:hover summary .card-title{color:#f5f8fc;}
+ .tier-deep .card:hover p,.tier-deep .card:hover li,.tier-deep .card:hover .cta-sub{color:#dce8f2;}
+ .timeline .card:hover .tl-date,.timeline .card:hover .tl-date *{color:#102b48;}
+ .faq-item:hover summary::after{background:linear-gradient(#e4c887,#e4c887) center/100% 2px no-repeat,linear-gradient(#e4c887,#e4c887) center/2px 100% no-repeat;}
+ .faq-item[open]:hover summary::after{background:linear-gradient(#e4c887,#e4c887) center/100% 2px no-repeat;}
+ .contact-ways a:hover{color:#f4d48a;text-decoration:underline;text-underline-offset:4px;}
+}
+@media(min-width:1200px) and (hover:hover){.hub .nodes .card:hover{background:transparent;}}
+@media(max-width:767px) and (hover:hover){.contact-ways a:hover{background:#17395a;color:#fff;}}
+
+/* White logo panels need dark labels, independently of the dark footer palette. */
+
+
+
+
+/* Keep the original night hero composition; only correct text on the dark sea. */
+.is-night .sec-pain h2,.is-night .sec-pain .lead,
+.is-night .sec-benefit h2,.is-night .sec-benefit .lead,
+.is-night .banner-help{color:#f7fbff;}
+/* A lightly translucent top menu, retaining the existing logo and colors. */
+.global-header{background:rgba(253,250,243,.84);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom-color:rgba(29,54,88,.12);}
+@supports not ((backdrop-filter:blur(12px)) or (-webkit-backdrop-filter:blur(12px))){.global-header{background:rgba(253,250,243,.96);}}
+.global-nav a[aria-current="location"],.global-nav a:hover,.global-nav a:focus-visible{text-decoration:none;}
+/* Employee-count guidance is an unframed footnote. */
+.sec-target .note{background:none;border:0;border-radius:0;box-shadow:none;padding:0;margin-top:24px;color:#fff;}
+
+/* Review notes 2026-11-13: navigation, annual scope, notices and compact dates. */
+.global-nav{gap:9px;}.global-nav .nav-separator{color:#687b8e;font-size:14px;line-height:1;}
+@media(min-width:1024px) and (max-width:1199px){.global-nav{gap:7px;}.global-nav a{font-size:12px;}.global-header-inner{gap:20px;}}
+.about-participation-notice{background:#fff0ed;border-color:#b75847;border-left-color:#a94434;color:#632d26;}
+.about-participation-notice .about-notice-label{color:#8e382c;}
+.about-participation-notice h3,.about-participation-notice p{color:#632d26;}
+.about-notice-actions a{background:#923f32;color:#fff;border:1px solid #923f32;}
+.about-notice-actions a:first-child{background:#fff8f5;color:#783326;border-color:#ac5847;}
+.about-notice-actions a:hover{background:#783326;color:#fff;}
+.sec-themes .note{border:0;border-radius:0;box-shadow:none;background:none;padding:0;margin-top:24px;color:var(--mid-ink);}
+.timeline ul.workshop-dates{display:grid;gap:5px;margin:12px 0 0;padding:0;list-style:none;width:fit-content;max-width:100%;font-size:16px;}
+.timeline ul.workshop-dates li{display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:baseline;gap:0;line-height:1.65;margin:0;padding:0;}
+.timeline ul.workshop-dates li>span{white-space:nowrap;}.timeline ul.workshop-dates strong{min-width:0;font-weight:700;}.timeline ul.workshop-dates time{white-space:nowrap;}
+.seminar-survey{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:28px;padding:26px 28px;background:#f7fafc;border:1px solid #9eafbf;border-left:5px solid #284e70;border-radius:10px;color:#17395a;}
+.seminar-survey h3{font-size:22px;line-height:1.5;color:#17395a;margin:0 0 10px;}.seminar-survey p{font-size:16px;line-height:1.85;color:#243e5b;margin:0;max-width:43em;}
+.survey-answer{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:12px;padding:15px 20px;border-radius:7px;background:#17395a;color:#fff;font-weight:700;font-size:16px;text-decoration:none;min-height:48px;}.survey-answer:hover{background:#2c5275;color:#fff;}.survey-answer:focus-visible{outline:3px solid #c8a55b;outline-offset:3px;}
+@media(max-width:767px){.seminar-survey{flex-direction:column;align-items:stretch;gap:18px;padding:22px 20px;}.seminar-survey h3{font-size:20px;}.survey-answer{width:100%;padding:14px 10px;}}
+
+.seminar-survey{scroll-margin-top:calc(var(--global-header-height) + 20px);}
+
+/* Match both participation-notice buttons to the left outlined style. */
+.about-notice-actions a{background:#fff8f5;color:#783326;border:1px solid #ac5847;}
+.about-notice-actions a:hover{background:#783326;color:#fff;}
+
+/* Smooth anchor navigation and crossfades, respecting reduced-motion preferences. */
+html{scroll-behavior:smooth;}
+@keyframes funade-theme-fade-out{from{opacity:1}to{opacity:0}}
+@keyframes funade-theme-fade-in{from{opacity:0}to{opacity:1}}
+::view-transition-old(root){animation:funade-theme-fade-out 1.2s ease-in-out both;mix-blend-mode:normal;}
+::view-transition-new(root){animation:funade-theme-fade-in 1.2s ease-in-out both;mix-blend-mode:normal;}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto;}::view-transition-old(root),::view-transition-new(root){animation:none;}}
+
+/* Invert the hero seminar button: white at rest, navy on interaction. */
+.hero-cta .btn-primary{background:#fff;color:#12335c;box-shadow:inset 0 0 0 1.5px #12335c,0 5px 15px rgba(12,40,76,.15);}
+.hero-cta .btn-primary:focus-visible{background:#12335c;color:#fff;}
+@media(hover:hover){.hero-cta .btn-primary:hover{background:#12335c;color:#fff;box-shadow:inset 0 0 0 1.5px #12335c,0 8px 22px rgba(12,40,76,.3);}}
+/* Both hero buttons share the same colors and a distinct keyboard-focus indicator. */
+.hero-cta .btn-ghost{background:#fff;color:#12335c;box-shadow:inset 0 0 0 1.5px #12335c,0 5px 15px rgba(12,40,76,.15);}
+.hero-cta .btn:focus-visible{outline:2px dashed #12335c;outline-offset:4px;background:#12335c;color:#fff;}
+@media(hover:hover){.hero-cta .btn-ghost:hover{background:#12335c;color:#fff;box-shadow:inset 0 0 0 1.5px #12335c,0 8px 22px rgba(12,40,76,.3);}}
+/* The seminar strip uses a smooth color reversal, without moving its arrow. */
+.seminar-announcement{cursor:pointer;transition:background-color .35s ease,color .35s ease,box-shadow .35s ease;}
+.seminar-announcement>b,.seminar-announcement>span{transition:color .35s ease;}
+.seminar-announcement>b{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;}
+.announcement-arrow{display:inline-block;}
+.seminar-announcement:focus-visible{outline:2px dashed #17395a;outline-offset:-5px;background:#fff;color:#17395a;}
+.seminar-announcement:focus-visible>b,.seminar-announcement:focus-visible>span{color:#17395a;}
+@media(hover:hover){.seminar-announcement:hover{background:#fff;color:#17395a;box-shadow:inset 0 0 0 1px #17395a;}.seminar-announcement:hover>b,.seminar-announcement:hover>span{color:#17395a;}}
+
+/* Both hero buttons: navy at rest, white on hover or keyboard focus. */
+.hero-cta .btn-primary,.hero-cta .btn-ghost{background:#12335c;color:#fff;box-shadow:inset 0 0 0 1.5px #12335c,0 5px 15px rgba(12,40,76,.15);transition:background-color .3s ease,color .3s ease,box-shadow .3s ease,transform .3s ease;}
+.hero-cta .btn:focus-visible{background:#fff;color:#12335c;outline:2px dashed #12335c;outline-offset:4px;}
+@media(hover:hover){.hero-cta .btn-primary:hover,.hero-cta .btn-ghost:hover{background:#fff;color:#12335c;box-shadow:inset 0 0 0 1.5px #12335c,0 8px 22px rgba(12,40,76,.3);}}
+
+/* Separate the contact button from the FAQ navigation item. */
+.global-nav .global-contact{margin-left:22px;}
+@media(min-width:1024px) and (max-width:1199px){.global-nav .global-contact{margin-left:18px;}}
+
+/* Three balanced header areas: logo left, navigation centered, contact right. */
+.global-header-inner{width:calc(100% - 48px);max-width:none;display:grid;grid-template-columns:minmax(185px,1fr) auto minmax(185px,1fr);gap:24px;}
+.global-header .global-brand{justify-self:start;}.global-header .global-nav{justify-self:center;}
+.header-contact{justify-self:end;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:11px 20px;border-radius:5px;background:#1d3658;color:#fff;font-size:14px;font-weight:700;white-space:nowrap;text-decoration:none;transition:background-color .25s ease;}
+.header-contact:hover{background:#315779;color:#fff;}.header-contact:focus-visible{outline:3px solid #bda361;outline-offset:3px;}
+@media(min-width:1024px) and (max-width:1199px){.global-header-inner{grid-template-columns:165px minmax(0,1fr) 140px;gap:14px;}.global-header .global-nav{gap:7px;}.global-header .global-nav a{font-size:12px;}.header-contact{font-size:13px;padding:10px 14px;}}
+@media(max-width:1023px){.global-header-inner{display:flex;width:calc(100% - 32px);justify-content:space-between;gap:16px;}.header-contact{display:none;}}
+/* Enlarge menu labels on hover without reflowing adjacent items. */
+.global-nav>a{display:inline-block;transform-origin:center;transition:transform .2s ease,color .2s ease;}
+.global-nav>a:focus-visible{transform:scale(1.08);outline:2px solid #17395a;outline-offset:4px;border-radius:2px;}
+@media(hover:hover){.global-nav>a:hover{transform:scale(1.08);}}
+@media(prefers-reduced-motion:reduce){.global-nav>a{transition:none;}}
+/* More breathing room between centered navigation labels and their separators. */
+.global-header .global-nav{gap:20px;}
+@media(min-width:1024px) and (max-width:1279px){.global-header-inner{grid-template-columns:165px minmax(0,1fr) 140px;gap:14px;}.global-header .global-nav{gap:10px;}.global-header .global-nav a{font-size:12px;}.header-contact{font-size:13px;padding:10px 14px;}}
+
+/* Keep each date and time legible on narrow screens. */
+.timeline ul.workshop-dates strong{display:inline-flex;flex-wrap:wrap;column-gap:8px;max-width:100%;}
+.timeline .workshop-time{display:inline-block;white-space:nowrap;}
+
+/* Consistent navy buttons with a subtle white wash on interaction. */
+body :is(.hero-cta .btn,.header-contact,.global-nav .global-contact,.seminar-announcement,.event-apply[href],.survey-answer,.back-to-top,.global-header .menu-btn,.global-header .menu-panel .menu-cta){background:#12335c;color:#fff;transition:background-color .3s ease,color .3s ease,box-shadow .3s ease,transform .3s ease;}
+body .about-notice-actions a,body .about-notice-actions a:first-child{background:#923f32;color:#fff;border-color:#923f32;transition:background-color .3s ease,box-shadow .3s ease;}
+body :is(.hero-cta .btn,.header-contact,.global-nav .global-contact,.seminar-announcement,.event-apply[href],.survey-answer,.back-to-top,.global-header .menu-btn,.global-header .menu-panel .menu-cta):focus-visible{background:#334f73;color:#fff;outline:2px dashed #12335c;outline-offset:4px;}
+body .about-notice-actions a:focus-visible{background:#a25c51;color:#fff;outline:2px dashed #923f32;outline-offset:4px;}
+body :is(.seminar-announcement,.event-apply[href],.survey-answer,.back-to-top) :is(span,strong,b){color:inherit;}
+@media(hover:hover){
+ body :is(.hero-cta .btn,.header-contact,.global-nav .global-contact,.seminar-announcement,.event-apply[href],.survey-answer,.back-to-top,.global-header .menu-btn,.global-header .menu-panel .menu-cta):hover{background:#334f73;color:#fff;}
+ body .about-notice-actions a:hover{background:#a25c51;color:#fff;}
+}
+@media(max-width:767px){
+ body .contact-ways a{background:#12335c;color:#fff;transition:background-color .3s ease;}
+ body .contact-ways a:focus-visible{background:#334f73;color:#fff;}
+ @media(hover:hover){body .contact-ways a:hover{background:#334f73;color:#fff;}}
+}
+@media(prefers-reduced-motion:reduce){body :is(.hero-cta .btn,.header-contact,.global-nav .global-contact,.seminar-announcement,.event-apply[href],.survey-answer,.back-to-top,.global-header .menu-btn,.global-header .menu-panel .menu-cta,.about-notice-actions a,.contact-ways a){transition:none;}}
+
+/* Review notes, November 14: heading, large illustration, then description. */
+:is(.sec-what,.sec-pain,.sec-benefit) .card{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto 190px 1fr;gap:18px;align-items:start;align-content:start;padding:26px;}
+.sec-what .card{grid-template-rows:auto auto 190px 1fr;row-gap:12px;}
+.sec-what .card>.step-label{grid-column:1;grid-row:1;}
+.sec-what .card>.card-title{grid-column:1;grid-row:2;}
+.sec-what .card>.vignette{grid-column:1;grid-row:3;}
+.sec-what .card>p:not(.step-label){grid-column:1;grid-row:4;}
+:is(.sec-pain,.sec-benefit) .card>.card-head{grid-column:1;grid-row:1;min-height:3em;width:100%;align-items:flex-start;}
+:is(.sec-pain,.sec-benefit) .card>.vignette{grid-column:1;grid-row:2;}
+:is(.sec-pain,.sec-benefit) .card>p{grid-column:1;grid-row:3;}
+:is(.sec-what,.sec-pain,.sec-benefit) .card>.vignette{position:static;justify-self:center;align-self:center;width:100%;height:190px;max-width:280px;min-width:0;object-fit:contain;margin:0;}
+:is(.sec-what,.sec-pain,.sec-benefit) .card>p{line-height:1.9;min-width:0;}
+.sec-pain h2 .h-rule{overflow-wrap:anywhere;}
+/* Make the teaching-materials invitation clearly visible. */
+#seminar-survey{background:#fff0ed;border:2px solid #b75847;border-left:6px solid #923f32;color:#632d26;box-shadow:0 8px 24px #632d2614;}
+#seminar-survey h3,#seminar-survey p{color:#632d26;}
+body #seminar-survey .survey-answer{background:#923f32;color:#fff;}
+body #seminar-survey .survey-answer:focus-visible{background:#a25c51;color:#fff;outline-color:#923f32;}
+@media(hover:hover){body #seminar-survey .survey-answer:hover{background:#a25c51;color:#fff;}}
+/* Night header changes with the existing whole-page theme crossfade. */
+.global-header{transition:background-color 1.2s ease,border-color 1.2s ease;}
+.global-brand{position:relative;}
+.global-brand::after{content:'';position:absolute;inset:0;background:#fff;mask:url('assets/img/logos/funade-h.webp') center/contain no-repeat;-webkit-mask:url('assets/img/logos/funade-h.webp') center/contain no-repeat;clip-path:inset(0 0 0 45%);opacity:0;transition:opacity 1.2s ease;pointer-events:none;}
+.is-night .global-header{background:rgba(13,37,64,.9);border-color:#94a8bf40;}
+.is-night .global-brand::after{opacity:1;}
+.is-night .global-nav>a,.is-night .nav-separator{color:#fff;}
+.is-night .global-nav>a:focus-visible{outline-color:#fff;}
+.is-night body .global-header .header-contact,.is-night body .global-header .menu-btn{background:#c6a45c;color:#12335c;}
+.is-night body .global-header .header-contact:focus-visible,.is-night body .global-header .menu-btn:focus-visible{background:#ceb173;color:#12335c;}
+.is-night .global-header .menu-bars,.is-night .global-header .menu-bars::before,.is-night .global-header .menu-bars::after{background:#12335c;}
+.is-night .global-header .menu[open] .menu-bars{background:transparent;}
+@media(hover:hover){.is-night body .global-header .header-contact:hover,.is-night body .global-header .menu-btn:hover{background:#ceb173;color:#12335c;}}
+/* Equal logo-panel heights, with organizer/office labels outside the panel. */
+
+
+
+
+
+@media(max-width:767px){
+ :is(.sec-what,.sec-pain,.sec-benefit) .card{padding:24px;grid-template-rows:auto 200px 1fr;gap:16px;}
+ .sec-what .card{grid-template-rows:auto auto 200px 1fr;row-gap:10px;}
+ :is(.sec-what,.sec-pain,.sec-benefit) .card>.vignette{height:200px;max-width:280px;}
+ :is(.sec-pain,.sec-benefit) .card>.card-head{min-height:0;}
+
+
+
+
+}
+@media(prefers-reduced-motion:reduce){.global-header,.global-brand::after{transition:none;}}
+
+
+
+@media(max-width:767px){}
+
+/* Anchor the mobile panel to the sticky bar; backdrop blur otherwise constrains fixed children to the header height. */
+@media(max-width:1023px){
+ .global-header .menu-panel{position:absolute;inset:100% 0 auto;height:calc(100svh - var(--global-header-height));height:calc(100dvh - var(--global-header-height));box-sizing:border-box;max-height:none;padding:20px 24px 32px;}
+ .global-header details:not([open]) .menu-panel{display:none;}
+ .global-header .menu-panel a{flex-shrink:0;}
+}
+
+/* Footer-only logo adjustments; keep the original panel layout. */
+.site-footer .foot-logo img{width:calc(100% - 48px);max-width:326px;height:auto;}
+.site-footer .lockup-item img[src$="hiroshima-pref-updated.png"]{height:auto;width:142px;max-width:100%;}
+@media(max-width:767px){.site-footer .foot-logo img{max-width:260px;}.site-footer .lockup-item img[src$="hiroshima-pref-updated.png"]{width:108px;}}
+
+/* Blend the header edge into the page without a divider or shadow. */
+.global-header,.is-night .global-header{border-bottom:0;box-shadow:none;}
+
+/* KV balance: two-thirds-size message with a slightly larger brand mark. */
+.hero-title{font-size:clamp(18.67px,2.4vw,40px);line-height:1.55;}
+.hero-brand{margin-top:24px;margin-bottom:24px;}
+.hero-logo img{max-width:580px;}
+@media(min-width:768px) and (min-aspect-ratio:13/10){.hero-logo img{width:min(46vw,730px);max-width:none;}}
+@media(max-width:767px){
+ .hero-title{font-size:clamp(16.67px,4.933vw,28px);}
+ .hero-brand{width:calc(100% + 16px);margin:22px -8px;}
+ .hero-logo img{width:100%;max-width:none;}
+}
+@media(max-width:389px){.hero-logo img{width:min(100%,224px);}}
+
+/* Align the four KV blocks to the review rectangles, with one shared left edge. */
+@media(min-width:1100px) and (min-aspect-ratio:13/10){
+ .hero-inner{--kv-height:min(clamp(620px,79vw,1160px),calc(100svh - 8px));padding-top:calc(var(--kv-height)*.11);padding-left:8vw;}
+ .hero-panel{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(min-content,calc(var(--kv-height)*.19)) minmax(min-content,calc(var(--kv-height)*.19)) minmax(min-content,calc(var(--kv-height)*.20)) auto;width:39vw;max-width:750px;align-items:start;}
+ .hero-title{font-size:clamp(28px,2.6vw,48px);margin:0;line-height:1.5;}
+ .hero-brand{margin:0;width:100%;}
+ .hero-logo img{width:100%;max-width:none;}
+ .hero-lead{width:27vw;max-width:520px;margin:0;font-size:clamp(16px,1vw,19px);line-height:1.95;}
+ .hero-cta{width:100%;max-width:550px;margin:0;align-items:flex-start;}
+}
+
+/* A consistent spacing rhythm within the user-selected KV region. */
+@media(min-width:1100px) and (min-aspect-ratio:13/10){
+ .hero-panel{grid-template-rows:repeat(4,auto);row-gap:32px;}
+ .hero-panel>.hero-title,.hero-panel>.hero-brand,.hero-panel>.hero-lead,.hero-panel>.hero-cta{margin-top:0;margin-bottom:0;}
+}
+@media(min-width:1100px) and (max-width:1399px) and (min-aspect-ratio:13/10){.hero-panel{row-gap:24px;}}
+@media(max-width:1099px),(max-aspect-ratio:13/10){
+ .hero-panel{display:grid;grid-template-columns:minmax(0,1fr);row-gap:24px;align-items:start;}
+ .hero-panel>.hero-title,.hero-panel>.hero-brand,.hero-panel>.hero-lead,.hero-panel>.hero-cta{margin-top:0;margin-bottom:0;}
+ .hero-panel>.hero-brand{margin-left:0;margin-right:0;width:100%;}
+}
+
+/* The original logo stays intact except for its independently animated sun/moon. */
+.hero-logo.logo-celestial{display:block;flex:none;width:100%;height:auto;max-width:580px;aspect-ratio:1436/300;overflow:visible;}
+@media(min-width:768px) and (min-aspect-ratio:13/10){.hero-logo.logo-celestial{width:min(46vw,730px);max-width:none;}}
+@media(min-width:1100px) and (min-aspect-ratio:13/10){.hero-panel .hero-logo.logo-celestial{width:100%;max-width:none;}}
+@media(max-width:767px){.hero-logo.logo-celestial{width:100%;max-width:none;}}
+.logo-sun{opacity:1;transform:translateY(0);}.logo-moon{opacity:0;transform:translateY(36px);}
+.is-night .logo-sun{opacity:0;transform:translateY(36px);}.is-night .logo-moon{opacity:1;transform:translateY(0);}
+[data-nightswitch]::before,[data-nightswitch]::after{display:none;}
+[data-nightswitch]{cursor:pointer;touch-action:manipulation;}
+[data-nightswitch]:focus-visible{outline:2px dashed #b69654;outline-offset:8px;}
+
+@keyframes funade-celestial-set{from{transform:translateY(0);opacity:1}to{transform:translateY(36px);opacity:0}}
+@keyframes funade-celestial-rise{from{transform:translateY(36px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* Header emblem follows the same day/night state as the hero. */
+.global-brand .header-celestial{display:block;width:100%;height:auto;aspect-ratio:1436/300;}
+.header-sun{opacity:1;}.header-moon{opacity:0;}
+.header-sun,.header-moon{transition:opacity 1.2s ease;}
+.is-night .header-sun{opacity:0;}.is-night .header-moon{opacity:1;}
+@media(prefers-reduced-motion:reduce){.header-sun,.header-moon{transition:none;}}
+
+/* Approved night paper: white ink and gold controls, day treatment unchanged. */
+.hero-logo-white-type{opacity:0;transition:opacity 1.2s ease;}
+.is-night .hero-logo-white-type{opacity:1;}
+.is-night .hero-title,.is-night .hero-lead,.is-night .hero-brand>span,.is-night .hero-brand .gold{color:#fff;text-shadow:none;}
+.is-night .hero-title .brush{background:none;color:#fff;-webkit-text-fill-color:#fff;text-shadow:none;}
+.hero-title,.hero-lead{transition:color 1.2s ease;}
+.is-night body .hero-cta .btn{background:#ead18e;color:#12335c;border-color:#ead18e;box-shadow:0 5px 15px #06172733;}
+.is-night body .hero-cta .btn:hover,.is-night body .hero-cta .btn:focus-visible{background:#efdbab;color:#12335c;border-color:#efdbab;}
+.is-night body .hero-cta .btn:focus-visible{outline-color:#fff;}
+@media (max-aspect-ratio:13/10) and (max-width:1199px), (max-width:767px){
+ .is-night .hero-art{background-color:#142c46;background-image:linear-gradient(180deg,#142c46 0%,#142c46 32%,rgba(20,44,70,.98) 43%,rgba(20,44,70,.80) 55%,rgba(20,44,70,.25) 72%,transparent 88%),url('assets/img/backgrounds/hero-night-navy-paper-v7.jpg');}
+ .is-night .hero-art::before{opacity:.55;}
+}
+@media(prefers-reduced-motion:reduce){.hero-logo-white-type,.hero-title,.hero-lead{transition:none;}}
+
+/* Render logo lettering once, avoiding doubled antialiased raster edges. */
+.hero-logo-white-type{opacity:1;filter:none;transition:filter 1.2s ease;}
+.is-night .hero-logo-white-type{filter:brightness(0) invert(1);}
+/* Carry the original daytime gold ink gradient into the first night phrase. */
+.is-night .hero-title .brush-gold{background-image:linear-gradient(110deg,#ffffff 0%,#e9ddc4 40%,#d6b269 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;}
+.is-night body .hero-cta .btn{background:#c6a45c;color:#12335c;border-color:#c6a45c;}
+.is-night body .hero-cta .btn:hover,.is-night body .hero-cta .btn:focus-visible{background:#ceb173;color:#12335c;border-color:#ceb173;}
+@media(prefers-reduced-motion:reduce){.hero-logo-white-type{transition:none;}}
+
+/* Clean transparent vector lettering replaces raster fringe in night mode. */
+.hero-logo-clean-type{opacity:1;fill:#084a72;transition:fill 1.2s ease;}
+.is-night .hero-logo-clean-type{opacity:1;fill:#fff;}
+.is-night .hero-logo-white-type{opacity:1;}
+.is-night .hero-title .brush-blue{background-image:linear-gradient(110deg,#ffffff 0%,#b8dcec 50%,#86cdbf 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;}
+@media(prefers-reduced-motion:reduce){.hero-logo-clean-type{transition:none;}}
+
+/* Preserve the source logo's exact letterforms; remove pale fringe by color only. */
+.is-night .hero-logo-white-type{filter:url(#funade-white-ink);}
+
+/* Center the shared left-aligned KV stack within the torn paper. */
+@media(min-width:1100px) and (min-aspect-ratio:13/10){
+ .hero-inner{padding-left:6vw;}
+ .hero-panel>.hero-title,.hero-panel>.hero-brand,.hero-panel>.hero-lead,.hero-panel>.hero-cta{margin-left:0;margin-right:0;justify-self:start;}
+}
+
+/* Move the aligned KV stack downward as one unit within the paper. */
+@media(min-width:1100px) and (min-aspect-ratio:13/10){
+ .hero-inner{padding-top:calc(var(--kv-height)*.14);}
+}
+
+/* Suppress the source bitmap's pale matte around the colored boat emblem at night. */
+.is-night .hero-logo-boats{filter:url(#funade-remove-white);}
+
+/* Keep the refreshed central illustration inside the original image area. */
+@media(min-width:1200px){.hub .hub-scene[src*="/watercolor-refresh/"]{height:112px;object-fit:contain;padding:5px 18px;}}
+
+/* Enlarge the mobile key message by 20%, retaining its three-line composition. */
+@media(max-width:767px){.hero-title{font-size:clamp(20px,5.92vw,33.6px);}}
+
+/* Tablet widths: keep the approved phone and wide-desktop layouts intact. */
+@media(min-width:768px) and (max-width:1099px) and (min-aspect-ratio:13/10){
+ .hero-inner{padding-left:6vw;padding-right:4vw;}
+ .hero-panel{width:40vw;max-width:none;}
+ .hero-title{font-size:clamp(26px,2.9vw,32px);}
+ .hero-panel .hero-logo.logo-celestial{width:100%;max-width:none;}
+ .hero-lead{width:100%;max-width:none;font-size:15px;line-height:1.9;}
+ .hero-cta{width:100%;max-width:none;}
+}
+@media(min-width:768px) and (max-width:1199px) and (max-aspect-ratio:13/10){
+ .hero{min-height:95svh;}
+ .hero>.wrap{width:calc(100% - 48px);}
+ .hero-inner{padding:72px 0 min(40vw,340px);}
+ .hero-panel{width:min(76%,620px);max-width:none;row-gap:28px;}
+ .hero-title{font-size:clamp(32px,3.8vw,36px);line-height:1.5;}
+ .hero-panel .hero-logo.logo-celestial{width:100%;max-width:none;}
+ .hero-lead{width:100%;max-width:none;font-size:16px;line-height:1.9;}
+ .hero-cta{width:100%;max-width:none;flex-wrap:wrap;gap:12px;}
+}
+@media(min-width:768px) and (max-width:1199px){
+ .sec-flow .steps{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;}
+ .sec-flow .steps .card{display:flex;flex-direction:column;align-items:stretch;padding:22px;gap:16px;}
+ .sec-flow .steps .card>.card-head{order:0;min-height:36px;}
+ .sec-flow .steps .card>.vignette{order:1;flex:none;align-self:center;width:100%;max-width:180px;height:132px;margin:0;}
+ .sec-flow .steps .card>p{order:2;max-width:none;margin:0;line-height:1.85;}
+ .hub .hub-scene{display:block;position:static;width:min(100%,320px);height:auto;max-height:108px;object-fit:contain;}
+ .hub .hub-center{gap:8px;}
+ .hub .nodes{grid-template-columns:repeat(2,minmax(0,1fr));}
+ .hub .nodes>.card:last-child{grid-column:1/-1;width:calc(50% - 12px);justify-self:center;}
+}
+@media(min-width:768px) and (max-width:1199px){
+ .sec-flow .steps .card{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto 132px auto;height:auto;min-height:0;align-content:start;}
+ .sec-flow .steps .card>.card-head{grid-column:1;grid-row:1;width:100%;min-width:0;flex:none;}
+ .sec-flow .steps .card>.vignette{grid-column:1;grid-row:2;justify-self:center;}
+ .sec-flow .steps .card>p{grid-column:1;grid-row:3;width:auto;min-width:0;flex:none;}
+}
+@media(min-width:1200px) and (max-width:1279px){
+ .hub,.hub .nodes .card:first-child{--node-w:316px;--label-w:140px;}
+}

@@ -1,0 +1,2810 @@
+@charset "UTF-8";
+/* ============================================================
+   ひろしま協働DXプロジェクト ― LP
+
+   設計の中心は「ページ全体を貫く1本の深度グラデーション」。
+   水面のクリームから最深部の紺まで、上から下へ連続して変化する
+   背景を body に1枚だけ敷き、その上に半透明のカードを重ねる。
+
+   セクションごとに背景を持たせない。持たせると境目に縞ができ、
+   ページが独立したブロックの連なりに見えてしまう。
+
+   深さに応じてカードの明暗を反転させる（浅瀬＝明るいカードに紺の文字、
+   深海＝紺のカードに白の文字）。これがスクロールの体験を作る。
+
+   動くのは海の生き物（@keyframes 6種）と、見出しの下線（1種）、
+   スクロールに連れて器ごと流れる分（1種）だけ。どれもレイアウトには
+   関わらない。生き物は transform と opacity しか動かさない。
+   深さで動き方を変える ―― 浅瀬は大きく速く、深海はゆっくり小さく。
+   モーション低減の指定があるときは、hover の transition と smooth scroll
+   ごとまとめて止める。
+
+   JavaScript は script.js の1本だけで、対象診断のポップアップ専用。
+   ページの見た目にも本文にも関わらないので、動かなくても何も欠けない。
+   ============================================================ */
+
+/* ============================================================
+   トークン
+   ============================================================ */
+:root{
+  /* 海面から深海まで。ページ全体で1本のグラデーションにする。
+
+     停止位置はセクションの階層に合わせてある。
+       浅瀬 0〜25% / 中層 25〜58% / 深海 58〜100%
+     ここがずれると、深海セクションの見出しが明るい水の上に乗って
+     コントラストが足りなくなる（実際に5件の未達を出した）。
+
+     色と位置は tools/check.js も読む。片方だけ変えないこと。 */
+  /* 素の海。ページ丈に対する%で色が決まるので、ここだけで
+     「中層は紺の字が読める明るさ／深海は白の字が読める暗さ」を
+     両立させることはできない。実測すると、中層の最後の地の文と
+     深海の最初の地の文の間に空く谷は、画面幅によって
+     39.6→47.6%（1024px）から 45.1→52.0%（775px）まで動く。
+     交差は 45.1→47.6% しかなく、そこで一気に潜らせると
+     200pxほどで急に暗くなって、それ自体が帯に見える。
+     だからここは緩やかな一本の坂に留め、深さは .deep-zone の幕で足す。 */
+  --sea-0:#FBF6E9;  --sea-p0:0%;     /* 水面 */
+  --sea-1:#E4EFE9;  --sea-p1:8%;
+  --sea-2:#C6E2EC;  --sea-p2:16%;
+  --sea-3:#A5D0E2;  --sea-p3:24%;    /* 中層のはじまり */
+  --sea-4:#8FBEDC;  --sea-p4:34%;
+  --sea-5:#6FA6CB;  --sea-p5:46%;
+  --sea-6:#3E7DAE;  --sea-p6:62%;
+  --sea-7:#0E2C50;  --sea-p7:100%;   /* 最深部 */
+
+  /* 深海の器に掛ける幕。深海の入口より --deep-lead だけ手前から
+     掛け始めるので、入口の見出しに届く頃にはもう暗い。
+     tools/check.js が同じ値を読んで同じ式で合成する。片方だけ変えない。 */
+  --deep-rgb:6,26,52;
+  /* 幕を掛け始める位置（深海の器の上端より手前）。中層の最後の地の文と
+     器の上端の間は、どの画面幅でも 722px 以上空いている（実測）。
+     600px なら文字に掛からず、沈む距離は 1200px 取れる。短くすると
+     暗くなり方が急になり、それ自体が帯に見えはじめる。 */
+  --deep-lead:600px;
+  --deep-a1:.55;   /* 深海の入口ちょうど */
+  --deep-a2:.78;   /* さらに --deep-lead 下がったところ */
+  --deep-a3:.88;   /* 最下部 */
+
+  --ink:#12335C;        /* 浅瀬側の文字 */
+  --ink-soft:#40566F;   /* 浅瀬側の補助文字 */
+  --mid-ink:#0A1F3C;    /* 中層で地の上に直に置く文字（見出し・リード） */
+  --paper:#F4F9FC;      /* 深海側の文字 */
+  --paper-soft:#D6E7F2; /* 深海側の補助文字。#C8DCEC では 4.46:1 で AA に僅かに届かなかった */
+  /* 金は透過版をあちこちで手書きしていた（31か所）。素の数値を持たせて
+     rgba(var(--gold-rgb), .45) の形で使う。--gold もここから作る。 */
+  --gold-rgb:198,164,92;
+  --gold:rgb(var(--gold-rgb));
+  --gold-deep:#8A6A2A;
+
+  /* 昼夜で入れ替えない紺。--ink は夜に明るいほうへ振るので、ボタンの地や
+     反転ホバーの文字のように「夜でもこの紺のまま」であってほしいものは
+     こちらを使う。値は今まで直に書いていたものと同じ。 */
+  --brand:#12335C;      /* 浅瀬の主色（ボタンの地、ヒーローのナビ） */
+  /* ヒーローのページ内ナビの地と文字。昼は紺地に白、夜は金地に紺。
+     夜の絵は空が濃い紺なので、紺のボタンが背景に沈んで「押せるもの」に
+     見えなくなる（依頼主 2026-09-07）。金は「参加費は無料です。」の札と
+     同じ色で、夜のページの中で唯一明るく浮く。 */
+  --nav-bg:rgba(18,51,92,.9);
+  --nav-fg:#fff;
+  --ink-deep:#0A2247;   /* 深海で反転したときの文字、番号バッジの地 */
+  --card-deep:#0A2648;  /* 深海のカードの地 */
+
+  --serif:"Noto Serif JP","Yu Mincho",YuMincho,"Hiragino Mincho ProN",serif;
+  --sans:"Noto Sans JP","Yu Gothic",YuGothic,"Hiragino Sans","Meiryo",sans-serif;
+
+  --wrap:1120px;
+  /* 器の言語。角丸は3段階＋札(999px)＋丸(50%)だけ。ここ以外に数値を書かない */
+  --r-lg:20px;   /* 大きな面：ダイアログ、夜の紙、SPの対象条件バー */
+  --r-md:16px;   /* 器：カード、ロゴ板、挿絵 */
+  --r-sm:12px;   /* 小物：注記、ナビ、選択肢 */
+
+  /* 縁。太さと濃さはここだけで決める（2026-09-05に「枠が太い」の指摘あり） */
+  --ring:inset 0 0 0 1px rgba(var(--gold-rgb),.45);
+  --ring-cool:inset 0 0 0 1px rgba(255,255,255,.85);
+  --ring-strong:inset 0 0 0 1.5px var(--gold);
+
+  /* 影＝「浮く」量。深さが増すほど濃く、遠くへ落とす */
+  --lift-1:0 6px 20px rgba(8,30,60,.10);
+  --lift-2:0 8px 22px rgba(8,40,72,.16);
+  --lift-3:0 10px 26px rgba(3,14,32,.34);
+  --lift-1-up:0 12px 28px rgba(8,30,60,.18);
+  --lift-2-up:0 14px 30px rgba(8,40,72,.24);
+
+}
+
+/* ============================================================
+   夜の海
+   ============================================================ */
+/* ヒーローの名前に3秒マウスを乗せると .is-night が付く（script.js）。
+   絵だけでなくページ全体を夜に変える。
+
+   **色は必ずここの変数で切り替えること。** tools/check.js と
+   tools/overlap.js は :root からこの変数を読んで下地を再現している。
+   個々のセレクタで色を上書きすると、検査が昼の色のまま判定して
+   コントラスト不足を見逃す。
+
+   段の作りは昼と同じ（浅瀬は明るく紺の字／深海は暗く白の字）。
+   違うのは「どこで暗くなるか」。夜は水面から2段目でもう暗いので、
+   中層は白い字に変える（下の .is-night .tier-mid を参照）。
+   浅瀬の地の文は 10〜15% あたりに来るので、14% までは明るさを残す。 */
+.is-night{
+  --sea-0:#E9EDF4;  --sea-p0:0%;     /* 月に照らされた水面 */
+  --sea-1:#DCE6F2;  --sea-p1:8%;
+  /* 潜る谷の位置は実測から。浅瀬の地の文はどの画面幅でも 12.8% までに
+     収まり、中層の最初の地の文は 18.7% より下に来る。その間で潜らせる。
+     21% まで引っ張ると、360px幅で中層の見出しが半端な明るさの水に乗り
+     3.84:1 まで落ちた。 */
+  --sea-2:#C8D8EA;  --sea-p2:13%;    /* ここまでは紺の字が読める */
+  --sea-3:#3E5C8E;  --sea-p3:18%;    /* 中層。ここから白い字に切り替わる */
+  --sea-4:#2F4E7E;  --sea-p4:34%;
+  --sea-5:#23406B;  --sea-p5:46%;
+  --sea-6:#16305A;  --sea-p6:62%;
+  --sea-7:#050C1E;  --sea-p7:100%;   /* 最深部 */
+
+  /* 地がもともと暗いので、幕は昼より薄くてよい。同じ濃さを掛けると
+     深海が真っ黒に潰れて、生き物も金の枠も沈む。 */
+  --deep-a1:.30;
+  --deep-a2:.50;
+  --deep-a3:.64;
+
+  --ink:#0E2748;
+  --ink-soft:#33455C;
+  /* 夜は中層がもう暗いので、地の上に直接置く文字を明るいほうへ入れ替える。
+     カード・注記は不透明なので、そのままで色は変えない。 */
+  --mid-ink:#EAF3FB;
+
+  /* ページ内ナビは金地に紺字（8.9:1）。紺地のままだと夜空に沈む。 */
+  --nav-bg:#DDBB6E;
+  --nav-fg:#0A2247;
+}
+
+
+/* ============================================================
+   リセット
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;}
+/* hidden を必ず効かせる。
+   ブラウザ既定の [hidden]{display:none} は「作者が書いた display」に
+   負ける。.card{display:flex} を持つ要素に hidden を付けても消えず、
+   よくあるご質問の隠したはずの8件がページに出ていた（2026-09-10）。
+   同じ罠を .chat-panel でも踏んでいるので、ここで一度だけ強く止める。 */
+[hidden]{display:none !important;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
+body{
+  margin:0;
+  position:relative;
+  font-family:var(--sans);
+  font-size:18px;
+  line-height:1.95;
+  color:var(--ink);
+  background:var(--sea-0);
+  /* 横あふれの止め方で position:sticky の効き方が変わる。
+     overflow-x:hidden は body をスクロール枠にしてしまい、中の sticky は
+     「動かないその枠」に張り付くので、実質まったく効かなくなる
+     （追従CTAが一度これで動かなくなった）。clip は枠を作らずに切るだけ。
+     古いブラウザ向けに hidden を先に置き、対応していれば clip が勝つ。 */
+  overflow-x:hidden;
+  overflow-x:clip;
+}
+img{max-width:100%;height:auto;display:block;}
+/* キーボード操作のフォーカス表示。定義が無いとUA既定のリングだけが頼りになり、
+   紺のボタンや紺のカードの上では判別しづらい。 */
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:4px;}
+a{color:inherit;text-decoration:none;}
+h1,h2,h3,p,ul,ol{margin:0;}
+ul,ol{list-style:none;padding:0;}
+
+/* ============================================================
+   背景 ― 深度グラデーション
+   ============================================================ */
+/* position:fixed にはしない。ページ丈に応じて伸びる必要があるため
+   absolute で全高を覆う。inset:0 は body の高さ全体に一致する。 */
+body::before{
+  content:'';
+  position:absolute; inset:0; z-index:-3;
+  background:linear-gradient(180deg,
+    var(--sea-0) var(--sea-p0),
+    var(--sea-1) var(--sea-p1),
+    var(--sea-2) var(--sea-p2),
+    var(--sea-3) var(--sea-p3),
+    var(--sea-4) var(--sea-p4),
+    var(--sea-5) var(--sea-p5),
+    var(--sea-6) var(--sea-p6),
+    var(--sea-7) var(--sea-p7));
+}
+
+/* 水面から差し込む光。上は強く、中層へ細く尾を引かせて、深海の入口で消す。
+
+   以前は 150vh（≒ページの13%）で切っていた。そのぶん、困りごとの途中から
+   深海の幕（進め方の600px手前）までの約35%が「色だけ」の区間になり、
+   潜っている感じが色でしか語られていなかった。高さをページ丈の48%
+   （＝深海の入口）まで延ばし、マスクで尾を細くする。
+
+   マスクの節は「上の見え方を変えない」ために置いてある。
+   11% ≒ 以前の 45%×150vh に当たる位置なので、そこまでの落ち方は前と同じ。
+   25% で .12 に落としてから、48%地点（=100%）で 0 にする。
+   最も濃いところでも 光.14 × マスク.12 ＝ 実効 1.7% で、
+   夜の中層（#2F4E7E）の上でも明るい文字とのコントラストは 6:1 を保つ（計算）。 */
+body::after{
+  content:'';
+  position:absolute; inset:0 0 auto; height:48%; z-index:-2;
+  pointer-events:none;
+  background:
+    repeating-linear-gradient(101deg,
+      rgba(255,255,255,.14) 0px, rgba(255,255,255,.14) 2px,
+      rgba(255,255,255,0)   2px, rgba(255,255,255,0)  48px),
+    repeating-linear-gradient(79deg,
+      rgba(255,255,255,.09) 0px, rgba(255,255,255,.09) 3px,
+      rgba(255,255,255,0)   3px, rgba(255,255,255,0)  76px);
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.45) 11%,rgba(0,0,0,.12) 25%,transparent 100%);
+          mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.45) 11%,rgba(0,0,0,.12) 25%,transparent 100%);
+}
+
+/* ============================================================
+   セクションの器
+   ============================================================ */
+.wrap{width:min(100% - 48px, var(--wrap));margin-inline:auto;}
+
+.section{
+  position:relative;
+  padding:104px 0;
+  background:transparent;   /* 深度グラデーションを遮らない */
+  scroll-margin-top:24px;
+}
+/* 上下に続くセクションの間は、上下の余白を足した分だけ広くなりすぎるので
+   詰める。ただし隣接兄弟セレクタは親をまたがない。#pain は .cta-rail の、
+   #flow は .deep-zone の、それぞれ最初の子なので、この2つだけ詰まらずに
+   104px のままだった（実測。他は88px）。追従CTAと深海の幕という別目的で
+   入れた器が、間接的に余白の規則を壊していた。器の先頭も明示して拾う。
+
+   :first-child ではなく :first-of-type なのは、器の先頭に section 以外
+   （対象条件の帯など）が入っても、最初のセクションを拾えるようにするため。 */
+.section + .section,
+.cta-rail > .section:first-of-type,
+.deep-zone > .section:first-of-type{padding-top:88px;}
+
+/* 対象条件の帯（ヒーローの直後）。
+
+   浅瀬の水の上に直接置くので、紙の地を敷いて文字を紺にする。カードほど
+   構えず、しかし読み飛ばされない程度の存在感にしたいので、高さは1行、
+   縁は金の細線だけにしてある。狭い画面では折り返して2〜3行になる。 */
+.terms-bar{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+  gap:.5em 1.1em;
+  margin:26px 0 0;padding:14px 20px;
+  border-radius:999px;
+  background:#FDFAF3;
+  box-shadow:var(--ring), var(--lift-1);
+  font-size:16px;line-height:1.7;color:var(--ink);
+  text-align:center;
+}
+.terms-label{
+  font-size:13.5px;font-weight:700;letter-spacing:.14em;
+  color:var(--gold-deep);
+}
+/* 項目の間は中黒ではなく細い縦線で仕切る。折り返したときに
+   行頭へ記号が落ちない。 */
+.terms-item + .terms-item{
+  border-left:1px solid rgba(var(--gold-rgb),.5);
+  padding-left:1.1em;
+}
+.terms-free{
+  font-weight:700;color:var(--ink-deep);
+  background:rgba(var(--gold-rgb),.22);
+  border-radius:999px;padding:.15em .9em;
+}
+/* 「無料」に添える但し書き。同じ札の中に入れて、無料の文字だけが
+   単独で読まれないようにする。小さくするが、読めない大きさにはしない
+   ―― 参加を決める前に知っておくべきことなので（2026-09-11）。 */
+.terms-except{
+  font-size:13px;font-weight:600;margin-left:.5em;
+  color:var(--ink);opacity:.92;
+}
+.terms-except::before{content:'※ ';}
+
+.tier-deep{color:var(--paper);}
+
+/* 深海セクションの上部に暗い幕を1枚ずつ掛けてはいけない。
+
+   以前は .tier-deep::before で先頭 560px を暗く落としていた。1枚では
+   目立たないが、深海のセクションは5つ続く。セクションごとに「上が暗く、
+   下へ向かって明るく戻る」を繰り返すので、境目に横縞が5本できて、
+   ページが独立したブロックの連なりに見えた。幕の色（6,26,52）が中層の
+   明るい水に乗ると彩度が落ちるため、その帯だけ灰色がかっても見えた。
+   依頼主から「セクションごとに切れて見える」「背景のグレースケールが
+   要らない」と両方を指摘されて撤去した（2026-08-31）。
+
+   代わりに、深海の5節をまとめた .deep-zone に幕を1枚だけ掛ける。
+   境目は器の上端の1か所しかなく、そこも手前 --deep-lead（600px）から掛け始めて
+   ゆっくり濃くなるので、線には見えない。器の中は下へ向かって
+   濃くなり続けるだけなので、明るく戻る場所がない＝縞ができない。 */
+.deep-zone{position:relative;}
+.deep-zone::before{
+  content:"";
+  position:absolute;left:0;right:0;
+  top:calc(var(--deep-lead) * -1);   /* 深海に入る手前から掛け始める */
+  bottom:0;
+  /* z-index は必ず負。いまは -2（生き物の -1 より下）。
+
+     0 にしていたとき、幕が中層のカードと文字の上に乗って灰色に曇った
+     （依頼主から「文字やアイコンにグレースケールが掛かる」と指摘
+     2026-09-02）。幕は深海の 600px 手前から始まるので、その帯にある
+     中層のカードと重なる。中層の本文には z-index が無く、位置指定した
+     z-index:0 の擬似要素は通常フローの中身より後に描かれるため、
+     文字の上に幕が乗っていた（実測で16要素が下敷きになっていた）。
+
+     通常フローの中身より先に描かれる負の値にすれば、カードにも文字にも
+     絶対に掛からない。
+
+     -2 にするのは、生き物（-1）より下へ回すため。-1 にしていたら、
+     幕は深海の器の子で DOM 順があとになるぶん、同じ -1 の生き物の上に
+     乗ってしまい、中層のカニが幕の下に沈んで見えた（依頼主 2026-09-05）。
+     ページのグラデーション（-3）よりは上なので、水を暗くする役目は
+     変わらない。 */
+  z-index:-2;pointer-events:none;
+  background:linear-gradient(180deg,
+    rgba(var(--deep-rgb),0)            0,
+    rgba(var(--deep-rgb),var(--deep-a1)) var(--deep-lead),
+    rgba(var(--deep-rgb),var(--deep-a2)) calc(var(--deep-lead) * 2),
+    rgba(var(--deep-rgb),var(--deep-a3)) 100%);
+}
+/* 本文は幕より上に置く。位置指定した擬似要素は、位置指定していない
+   通常フローの要素より後に描かれるため、これが無いと文字が沈む。 */
+.tier-deep > .wrap{position:relative;z-index:1;}
+
+
+/* ============================================================
+   見出し
+   ============================================================ */
+.eyebrow{
+  display:inline-block;
+  font-size:14.5px;font-weight:700;letter-spacing:.08em;
+  padding:.5em 1.4em;border-radius:999px;
+  background:var(--brand);color:#fff;
+}
+/* 白の半透明を敷くと下地が明るくなり、金の文字が 2.7:1 まで落ちる。
+   深海側は逆に「暗い地に金」にして締める。 */
+.tier-deep .eyebrow{
+  background:#0A1E38;
+  border:1px solid rgba(var(--gold-rgb),.75);
+  color:#F0E3C4;
+}
+
+h2{
+  font-family:var(--serif);
+  font-size:clamp(28px,2.9vw,40px);
+  font-weight:600;line-height:1.55;letter-spacing:.01em;
+  margin:.65em 0 .5em;
+}
+.tier-deep h2{color:#fff;}
+
+/* --- 見出しの下線（スクロールで左から引かれる） ---
+   hiroshima-colorful.com の見出しに倣った依頼（2026-09-05）。
+   行ごとに引く（2行・3行の見出しはその行それぞれに）＝追加の依頼（同日）。
+
+   線は擬似要素ではなく、見出しの中身を包む <span class="h-rule"> の背景。
+   インライン要素は行ごとに分かれるので、box-decoration-break:clone を付けると
+   分かれた断片それぞれが背景を持つ＝行ごとに、その行の文字幅だけ線が引かれる。
+   ::after を1本置く方式では、どれだけ行が増えても最後の行の下に1本しか
+   引けなかった。
+
+   引く動きは background-size の横幅（0%→100%）。% は断片ごとの幅を基準に
+   解決されるので、行の長さが違っても同時に引き終わる。
+
+   既定は「引き終わった状態」。JSが読めなければ線はそのまま出ている。 */
+h2 .h-rule{
+  --rule-w:5px;
+  display:inline;
+  -webkit-box-decoration-break:clone;
+  box-decoration-break:clone;
+  background-image:linear-gradient(var(--gold),var(--gold));
+  background-repeat:no-repeat;
+  background-position:0 100%;
+  background-size:100% var(--rule-w);
+  /* 線は自分の行のすぐ下に置く。.16em 空けていたときは、実測で線の下端が
+     次の行の行box に 8px 食い込み、2行以上の見出しで「下の行に乗った線」に
+     見えていた（インラインboxは行間より背が高いので、離すほど下の行に
+     近づく）。自分の行に寄せるほうが、どの行の線かも分かりやすい。 */
+  padding-bottom:.04em;
+}
+/* 引くきっかけは「見出しが画面の中央に来たとき」（依頼主 2026-09-08。
+   hiroshima-colorful.com と同じ動きに、という指示）。
+
+   参考サイトの実装を実際に読んで合わせた ―― あちらは
+   `strong::after{width:0; transition:.5s ease-out}` を IntersectionObserver で
+   足したクラスから 0→102% にしている。**スクロール連動ではなく、一度きり
+   0.5秒で引く**動き。こちらも同じにする。
+
+   以前はスクロール連動（`animation-timeline:view()`）だったが、それだと
+   スクロールを止めれば線も途中で止まり、戻せば消える。「中央に来たら引かれる」
+   にはならない。
+
+   JSが無いときは線が最初から引かれた状態（下の既定のまま）。script.js が
+   読めたときだけ .rule-anim が付いて、0から引く動きになる。 */
+html.rule-anim h2 .h-rule{
+  background-size:0% var(--rule-w);
+  transition:background-size .5s ease-out;
+}
+html.rule-anim h2.is-ruled .h-rule{background-size:100% var(--rule-w);}
+/* 動きを減らす設定では、引く動きをやめて最初から出す */
+@media (prefers-reduced-motion:reduce){
+  html.rule-anim h2 .h-rule{background-size:100% var(--rule-w);transition:none;}
+}
+
+.lead{
+  font-size:19px;line-height:1.95;max-width:40em;
+  color:var(--ink-soft);
+  margin-bottom:2.6rem;
+}
+/* 中層は水の青が濃いので、補助色ではなく本文色を使う。
+   --ink-soft のままだと 3.2:1 しか出ずAA(4.5:1)に届かない。 */
+/* 中層の水は明るく、通常の --ink では 4.0:1 しか出ない。もう一段暗くする。
+   見出しもスマホでは21pxまで縮み「大きい文字」の閾値(24px)を下回るため、
+   必要比が 3:1 から 4.5:1 に上がる。同じ色を当てる。 */
+/* 色は変数で持つ。夜は水が一段目から暗いので、ここだけ明るい字に
+   入れ替える必要がある。詳細度で殴り合うと、あとから足した規則が
+   効かない事故になる（実際に .is-night .tier-mid h2 が効かなかった）。
+   変数なら根から降りてくるので、争いにならない。 */
+.tier-mid .lead,
+.tier-mid h2{color:var(--mid-ink);}
+/* 深海のリード文は補助色そのままだと 4.42:1 で、AA にわずかに届かない。
+   ページが伸びるたびに位置がずれる作りなので、余裕を持たせて明るくする。 */
+.tier-deep .lead{color:#E8F2FA;}
+
+/* ============================================================
+   カード ― 深さで明暗を反転させる
+   ============================================================ */
+.grid{display:grid;gap:24px;}
+.grid-3{grid-template-columns:repeat(3,1fr);}
+.grid-5{grid-template-columns:repeat(5,1fr);}
+
+/* 角丸は「箱の格」で決める（2026-09-11）。
+
+   トークンは 20/16/12px と3段あるのに、.card が全部 --r-md だったため、
+   ページ上の四角い箱50枚がすべて16pxで出ていた。AIの作ったページの
+   見分け方として「どこも同じ16pxの角丸」がそのまま挙げられている。
+
+     大きな器（動画枠・支援体制の図・アンケートの帯・年表の帯・
+              こんな方におすすめ）  20px  --r-lg
+     ふつうのカード                 16px  --r-md
+     一覧の行・注記・小さな札        12px  --r-sm
+
+   丸みの大きさが面積に連れて変わると、箱に上下の関係が生まれる。 */
+.card{
+  position:relative;
+  border-radius:var(--r-md);
+  padding:26px 24px;
+  display:flex;flex-direction:column;gap:.5em;
+}
+
+/* カードの地は透かさない。
+
+   以前は .92〜.94 の半透明にして「水の色が透ける」ようにしていた。
+   ところが後ろは上から下へ濃くなるグラデーションなので、カード1枚の
+   中でも上と下で色が変わり、白いはずのカードが青灰色に沈んで見えた
+   （依頼主から「グレーが掛かっている」と指摘を受けた 2026-08-31）。
+   透過を8%残す利点より、カードが濁る不利のほうが大きい。 */
+
+/* 浅瀬：クリームのカードに紺の文字 */
+.tier-shallow .card{
+  background:#FDFAF3;
+  color:var(--ink);
+  box-shadow:var(--ring), var(--lift-1);
+}
+/* 中層：白寄りのカードに紺の文字 */
+.tier-mid .card{
+  background:#FAFDFF;
+  color:var(--ink);
+  box-shadow:var(--ring-cool), var(--lift-2);
+}
+/* 深海：紺のカードに白の文字。金の細枠で締める */
+.tier-deep .card{
+  background:var(--card-deep);
+  color:var(--paper);
+  box-shadow:var(--ring), var(--lift-3);
+}
+
+/* カードにマウスを乗せたときの強調。
+
+   カード自体はリンクではないので cursor は変えない。押せると誤解させず、
+   「いま読んでいる場所」だけを浮かび上がらせるのが狙い。
+   変えるのは地の色と枠と影と浮き上がりで、文字色は動かさない
+   （動かすとコントラストの検証を階層ごとにやり直すことになる）。
+
+   hover:hover で囲うのは、タッチ端末では hover が「触った状態のまま
+   残る」ため。指を離しても1枚だけ光ったままになる。 */
+@media (hover:hover){
+  .card{transition:background-color .2s ease, box-shadow .2s ease, transform .2s ease;}
+  .tier-shallow .card:hover{
+    background:#FFFDF6;transform:translateY(-3px);
+    box-shadow:var(--ring-strong), var(--lift-1-up);
+  }
+  .tier-mid .card:hover{
+    background:#FFFFFF;transform:translateY(-3px);
+    box-shadow:var(--ring-strong), var(--lift-2-up);
+  }
+  /* 深海は「光が差す」表現にする。暗い地の上で少し色を変えるだけでは
+     変化が読み取れない（依頼主から「暗くて見づらい」と指摘 2026-08-31）。
+
+     地を明るい水色に変える案は、中の文字（白と金）が地に近づいて
+     かえって読みにくくなった（依頼主から再度指摘 2026-09-02）。
+     いまは**元の配色をそのまま反転**させる ―― 紺地に白文字を、
+     紙地に紺文字へ。金と水色の光は外に回したまま残す。
+
+     文字色を動かすので、中の要素も一つずつ入れ替える必要がある。
+     .tier-deep .card-title などが個別に色を持っているため、
+     親の color を変えるだけでは白いまま残る。 */
+  .tier-deep .card:hover,
+  .tier-deep .checklist:hover{
+    background:var(--paper);transform:translateY(-3px);
+    box-shadow:
+      var(--ring-strong),
+      0 0 26px rgba(var(--gold-rgb),.45),
+      0 0 56px rgba(126,196,246,.34),
+      0 16px 34px rgba(3,14,32,.46);
+  }
+  .tier-deep .card:hover .card-title,
+  .tier-deep .checklist:hover .card-title,
+  .faq-item:hover summary .card-title{color:var(--ink-deep);}
+  .tier-deep .card:hover p,
+  .tier-deep .card:hover li,
+  .tier-deep .checklist:hover li,
+  .tier-deep .checklist:hover .sub,
+  .tier-deep .card:hover .cta-sub{color:#33455C;}
+  .tier-deep .card:hover strong{color:var(--ink-deep);}
+  /* 番号バッジは金地に紺字。反転させて紺地に金字にする。
+     「準備中」の札も同じ。薄い金地に淡い金字のままだと、
+     紙地の上で 1.32:1 まで落ちて消える。 */
+  .tier-deep .card:hover .num,
+  .tier-deep .card:hover .cta-badge{
+    background:var(--ink-deep);color:var(--gold);border-color:var(--ink-deep);
+  }
+  /* チェックリストの丸と鉤も同じ考えで入れ替える */
+  .tier-deep .checklist:hover li::before{background:var(--ink-deep);}
+  .tier-deep .checklist:hover li::after{border-color:var(--gold);}
+  /* FAQ の ＋ 印は金の線でできている。紙地の上では紺にする */
+  .faq-item:hover summary::after{
+    background:
+      linear-gradient(var(--ink-deep),var(--ink-deep)) center/100% 2px no-repeat,
+      linear-gradient(var(--ink-deep),var(--ink-deep)) center/2px 100% no-repeat;
+  }
+  .faq-item[open]:hover summary::after{
+    background:linear-gradient(var(--ink-deep),var(--ink-deep)) center/100% 2px no-repeat;
+  }
+}
+
+.card-title{
+  font-family:var(--serif);
+  font-size:23px;font-weight:700;line-height:1.45;
+  color:var(--ink);
+}
+.tier-deep .card-title{color:#fff;}
+
+.card p{font-size:17px;line-height:1.9;color:var(--ink-soft);}
+/* かつて金地の時期ラベルを :not(.when) で除いていたが、.when というクラスは
+   もう無い（時期は .tl-when という div の中の span で、p ではない）。
+   常に真の除外を書いておくと、詳細度だけが上がって読み手を惑わせる。 */
+.tier-deep .card p{color:var(--paper-soft);}
+
+/* 番号。丸ではなく明朝の数字にして、カード全体を軽く見せる */
+.num{
+  display:inline-grid;place-items:center;
+  width:34px;height:34px;flex:none;border-radius:50%;
+  background:var(--brand);color:#F0E3C4;
+  font-family:var(--serif);font-size:19.5px;font-weight:600;line-height:1;
+}
+.tier-deep .num{background:var(--gold);color:var(--ink-deep);}
+
+.card-head{display:flex;align-items:center;gap:12px;}
+
+/* 挿絵。狭いカードでは右下に添える */
+.vignette{width:38%;max-width:118px;align-self:flex-end;margin-top:auto;}
+.vignette-center{align-self:center;width:62%;max-width:170px;margin:.3em auto;}
+
+/* --- 広いカードは本文と挿絵を横に並べる ---
+
+   1列に本文を流すと、1行が長く伸びて2行で終わり、残った下半分に小さな
+   挿絵がぽつんと置かれる形になっていた。本文を狭くして行数を増やし、
+   空いた右側を挿絵に明け渡すと、絵が2倍近く大きくなって読む列も短くなる。
+
+   切り替えはカード自身の幅で決めたい。同じカードが3列にも2列にも1列にも
+   なるので、画面幅で判断すると実際の広さと一致しないためだ。
+   ただしコンテナクエリは使えない ―― 問い合わせ先になれるのは祖先だけで、
+   カード自身の幅をそのカードのルールから参照することはできない。
+
+   代わりに flex の折り返しに任せる。本文と挿絵にそれぞれ最小幅を与えて
+   おけば、2つ並べる余地があるカードでは横に並び、足りないカードでは
+   勝手に縦へ落ちる。しきい値をどこにも書かずに済む。 */
+.sec-pain .card,
+.sec-what .card,
+.sec-flow .card,
+.sec-benefit .card{
+  flex-direction:row;flex-wrap:wrap;align-items:flex-start;
+  row-gap:.5em;column-gap:18px;
+}
+/* メリットの5枚は同じ大きさで 3＋2 に並べ、下の2枚を中央に寄せる。
+
+   以前（2026-09-11）は1枚目だけを2列ぶんに広げ、3×2＝6コマを埋めていた。
+   ページのリズムを崩す狙いだったが、依頼主から「何から始めるかが決まる」
+   だけが不自然に大きく見える、と指摘があった（2026-10-14）。
+   5枚は並列のメリットで、1枚目だけを主役にする理由が無い。
+   6列の格子に各カードを2列ずつ置き、4枚目を2列目から始めれば、
+   下の段の2枚が上の段の継ぎ目にまたがって中央に来る。 */
+@media (min-width:1000px){
+  .sec-benefit .grid{grid-template-columns:repeat(6,1fr);}
+  .sec-benefit .grid > li{grid-column:span 2;}
+  .sec-benefit .grid > li:nth-child(4){grid-column:2 / span 2;}
+}
+/* 見出し類は横幅いっぱい。番号とタイトルを1行に並べたいので、
+   本文と同じ列に閉じ込めない。 */
+.sec-pain .card > .card-head,
+.sec-flow .card > .card-head,
+.sec-benefit .card > .card-head,
+.sec-what .card > .step-label,
+.sec-what .card > .card-title{flex:0 0 100%;}
+/* 本文は 7.5em 未満には縮まない。ここが効いて、狭いカードでは
+   絵が下へ回る。 */
+.sec-pain .card > p,
+.sec-what .card > p,
+.sec-flow .card > p,
+.sec-benefit .card > p{flex:1 1 8em;min-width:7.5em;}
+
+/* カードの中の文字に段をつける（2026-09-11）。
+
+   .card の中の説明文が43個そろって17pxだった。粒がそろいすぎていると
+   どのカードも同じ重さに見え、ページ全体が平らになる。節の役割に合わせて
+   3段に分ける ―― 読ませたい一文は大きく、列挙は締める。
+
+     17.5px  そこが主役の説明（できること）
+     17px    ふつうの説明（よくあるご質問の答えなど、据え置き）
+     16.5px  列挙・短い断定（困りごと、メリット）
+     16px    ひとことの補足（進め方） */
+.sec-pain .card > p{font-size:16.5px;}
+.sec-what .card > p{font-size:17.5px;}
+.sec-benefit .card > p{font-size:16.5px;}
+.sec-flow .card > p{font-size:16px;}
+/* 進め方はHTMLの並びが 絵 → 本文 なので、そのままだと絵が左に来る。
+   他のカードは本文が左なので、見た目の順だけ入れ替えて揃える。
+   HTMLの並びは変えない ―― 番号・見出し・説明の順で読めるほうが、
+   読み上げでも検索でも自然なため。 */
+.sec-flow .card > p,
+.sec-benefit .card > p{order:1;}
+.sec-flow .vignette,
+.sec-benefit .vignette{order:2;}
+.sec-pain .vignette,
+.sec-what .vignette,
+.sec-flow .vignette,
+.sec-benefit .vignette{
+  /* .vignette-center の margin:auto は中央寄せ用。横並びでは列を
+     押しのけてしまうので殺す。 */
+  margin-inline:0;
+  /* カードの内寸は padding のぶん 48px 狭い。基準を内寸で考えないと
+     2つ並ばず、挿絵だけが次の行へ落ちる（実際に落ちた）。 */
+  /* 折り返すかどうかは、縮んだあとの幅ではなく flex-basis の合計で
+     決まる。基準を詰めておかないと、収まる幅なのに絵だけ次の行へ落ちる
+     （文字を大きくした途端これが起きた）。 */
+  flex:0 1 44%;width:auto;max-width:210px;min-width:104px;
+  align-self:center;margin-top:0;
+}
+/* 浅瀬・中層のカードは明るい地なので、挿絵の白地を馴染ませる */
+.tier-shallow .vignette,.tier-mid .vignette{mix-blend-mode:multiply;}
+/* 紺地では白背景の挿絵が矩形として浮く。
+   multiply は白を消せるが線画まで沈み、screen は白が白のまま残るので、
+   どちらも解にならない。明るい下敷きを敷いて「額に入った絵」にする。
+   .nodes の丸バッジは元から背景を持つので対象外。 */
+.steps .vignette{
+  background:#FAFDFF;
+  border-radius:var(--r-md);
+  padding:10px;
+  box-shadow:var(--lift-3);
+  /* 大きさはここでは決まらない。この絵は上の flex の並び（文と絵を
+     横に並べる）の一員で、主軸の寸法は flex-basis:44% が持っている。
+     かつてカードが縦積みだった頃の名残で width:min(76%,220px) と
+     書いてあったが、実測すると 1920px でも 136px（＝内寸309pxの44%）
+     で、この指定は一度も効いていなかった。大きさを変えたいときは
+     上の flex-basis を触ること。 */
+}
+
+/* ============================================================
+   個別のカード
+   ============================================================ */
+/* できること：STEP ラベル */
+.step-label{
+  font-family:var(--serif);font-size:16px;font-weight:600;
+  letter-spacing:.16em;color:var(--gold-deep);
+}
+
+/* メリット：縦長。番号を上に置く */
+/* メリットは5枚。以前は5列に並べていたが、1枚 157px では本文も絵も
+   窮屈で、文字を大きくするとさらに苦しくなる。3列（3+2）にして、
+   他のカードと同じ「本文左・絵右」に揃えた。 */
+.card-tall{align-items:flex-start;}
+.card-tall .card-head{width:100%;}
+
+/* 募集テーマ */
+.card p.theme-name,
+.theme-name{
+  /* .theme-name は <p> なので、`.card p`（0,1,1）に負ける。
+     業種名はカードの題なのに本文と同じ大きさで出ていた
+     （依頼主から「もっと大きく目立つように」2026-09-02）。
+     p を付けて（0,2,1）確実に勝たせる。 */
+  font-family:var(--serif);font-size:27px;font-weight:700;color:var(--ink);
+}
+/* 業種名の右が空いていたので、業種の絵を並べて置く（依頼主 2026-09-05）。
+   絶対配置ではなく flex にしてあるのは、「バックオフィス」のように長い
+   名前でも絵と重ならないようにするため。金の罫は名前だけでなく
+   見出しの帯の下に引く（カード幅いっぱいに通す）。 */
+.theme-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding-bottom:.4em;border-bottom:1px solid rgba(var(--gold-rgb),.55);
+}
+.theme-icon{
+  flex:0 0 auto;
+  width:clamp(58px, 7.2vw, 92px);
+  height:auto;
+  /* 絵の下辺が名前の下辺より少し下がると、罫に食い込んで窮屈に見える */
+  margin-block:-4px;
+}
+.label{
+  font-size:15px;font-weight:700;letter-spacing:.06em;color:var(--gold-deep);
+}
+/* 募集テーマのカードは「悩み → 取り組むこと」の2段。同じ大きさで
+   並べると、どちらが結論か分からない。悩みは引用のように締め、
+   取り組むことを一段大きく置く（2026-09-11）。 */
+.sec-themes .card.theme > p{font-size:16px;}
+.sec-themes .card.theme > .label{font-size:15px;}   /* 見出しの札。本文より小さいまま */
+.sec-themes .card.theme > .arrow{font-size:17.5px;font-weight:600;}
+.arrow{position:relative;padding-left:1.4em;margin-top:.4em;}
+.arrow::before{
+  content:'';position:absolute;left:0;top:.62em;
+  border:.38em solid transparent;border-left-color:var(--gold);
+}
+
+/* ============================================================
+   よくあるご質問
+   <details>/<summary> のネイティブ開閉を使う。JSを足さずに済み、
+   キーボード操作とスクリーンリーダーにそのまま対応できる。
+   ============================================================ */
+.faq-list{display:grid;gap:12px;}
+/* 一覧の行なので、カードより丸みを締める。15行が並ぶので、
+   16pxだと行どうしの隙間より丸みのほうが目立つ。 */
+.faq-item{padding:0;border-radius:var(--r-sm);}
+.faq-item summary{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:20px 22px;cursor:pointer;
+  list-style:none;              /* Firefox の三角を消す */
+  min-height:44px;              /* タップ領域 */
+}
+.faq-item summary::-webkit-details-marker{display:none;}
+.faq-item summary .card-title{flex:1;font-size:21px;}
+/* 開閉の目印。開くと縦棒が消えて「−」になる */
+.faq-item summary::after{
+  content:"";flex:none;position:relative;
+  width:15px;height:15px;margin-top:.35em;
+  background:
+    linear-gradient(var(--gold),var(--gold)) center/100% 2px no-repeat,
+    linear-gradient(var(--gold),var(--gold)) center/2px 100% no-repeat;
+  transition:transform .2s ease;
+}
+.faq-item[open] summary::after{
+  background:linear-gradient(var(--gold),var(--gold)) center/100% 2px no-repeat;
+}
+/* FAQ の器は .card でもあるので、ホバーの見た目は
+   「深海のカードのホバー」（@media (hover:hover) の中）がまとめて持つ。
+   ここで地の色や見出しの色を足すと、反転と食い違って読めなくなる
+   （金地に金文字になっていた 2026-09-02）。 */
+.faq-item > p{
+  margin:0;padding:0 22px 22px;
+  font-size:17px;line-height:1.95;color:var(--paper-soft);
+}
+.faq-item > p strong{color:#fff;}
+/* 参加費無料は一番効く訴求なので、CTA の直前で目立たせる */
+.free-mark{
+  display:inline-block;margin-left:.4em;
+  color:var(--ink-deep);background:var(--gold);
+  padding:.12em .7em;border-radius:999px;font-size:.92em;font-weight:700;
+}
+/* その但し書き。金の札と同じ行に続けて置く。小さくはするが、
+   目立たせた「無料」の直後から離さない（2026-09-11）。 */
+.lead-except{
+  display:block;margin-top:.6em;
+  font-size:.86em;line-height:1.8;color:var(--paper-soft);
+}
+
+
+/* 支援体制のノード。丸バッジのアイコンは元が240pxの円形で、
+   そのまま大きく出すとカードを占領してしまう。小さく中央に置き、
+   文字も中央揃えにして「役割の一覧」として読ませる。 */
+.nodes .card{align-items:center;text-align:center;padding:20px 16px;}
+/* 支援体制の絵は白地の正方形（tools/build-node-icons.ps1）。紺のカードに
+   四角のまま置くと浮くので、円に切って金の輪で締める。
+   もとの丸バッジと同じ見え方になり、絵だけ差し替えられる。 */
+.nodes .vignette-center{
+  width:clamp(64px, 7.4vw, 92px);height:auto;max-width:none;
+  aspect-ratio:1;object-fit:cover;
+  margin:0 auto .35em;
+  border-radius:50%;
+  box-shadow:0 0 0 2px rgba(var(--gold-rgb),.85), 0 4px 14px rgba(3,14,32,.4);
+}
+.nodes .card-title{font-size:18px;}
+.nodes .card p{font-size:15px;}
+
+/* 支援体制の中心 */
+.hub-center{
+  display:flex;flex-direction:column;align-items:center;gap:.1em;
+  /* 幅は下の5枚の並び全体と揃える ―― 一番左の枠の左端から、一番右の
+     枠の右端まで。280px の決め打ちだと下のどの枠とも縁が合わず、
+     ずれて見えた（依頼主 2026-09-05）。
+     下の .grid は .wrap の幅いっぱいなので、100% で端がぴたりと合う。 */
+  width:100%;margin:0 auto 26px;
+  padding:20px;border-radius:var(--r-md);
+  /* 金の淡い地は下地を明るくしてしまい、白系の文字が乗らない。
+     紺を敷いて金は枠だけにする。 */
+  background:#0A2445;
+  /* 枠の濃さはカード（.45）と揃える。.7 にしていたら、同じ1pxでも
+     この箱だけ線が太く見えると指摘を受けた（2026-09-05）。 */
+  box-shadow:var(--ring);
+}
+.hub-center strong{font-family:var(--serif);font-size:23px;color:#fff;}
+.hub-center span{font-size:15px;color:var(--paper-soft);}
+
+/* ── 支援体制を「図」にする ──────────────────────────
+   完成イメージ（2026-09-07 依頼主提供）のとおり、参加事業者を中心に
+   5つの役割が輪になって囲む図。**絵だけを完成イメージから切り出し、
+   文字はすべてHTMLのまま**（画像内テキスト禁止の約束）。
+
+   図になるのは 1200px 以上。この幅なら .wrap は必ず 1120px になるので
+   （min(100% - 48px, 1120px)）、図の中の配置を1120×480の固定で組める。
+   それ未満は今までどおり「中心の札 ＋ 役割の一覧」。狭い画面では
+   ラベルを絵の横に置く余地がなく、島が重なって読めなくなる。 */
+.hub{position:relative;}
+.hub-lines,.hub-scene,.hub-foot{display:none;}
+/* <picture> は器ではなく入れ物なので、並びから消して中の <img> を直接の
+   子として扱わせる。**<source> も明示的に消すこと** ―― 既定が display:block
+   なので、display:contents の親の下では幅0の項目として並びに残り、
+   flex の gap がその前後に入って絵が16pxずれる（実測 2026-09-07）。 */
+.nodes picture{display:contents;}
+.nodes source{display:none;}
+
+@media (min-width:1200px){
+  .hub{
+    /* 中が絶対配置なので、親が高さを持たないとセクションが潰れる */
+    width:100%;height:480px;margin:26px auto 0;
+    /* 島（絵）の大きさ。輪の楕円と島の位置は下の % と対で決めてある */
+    --plate-w:140px; --plate-h:98px;
+    --node-w:326px;   /* 絵140 ＋ 間16 ＋ ラベル170 */
+    --label-w:170px;
+  }
+  /* 5つの島が乗る輪。cx/cy/rx/ry は島の位置（--x/--y）と同じ座標系。
+     どちらかだけ動かすと島が輪から外れる。 */
+  .hub-lines{
+    display:block;position:absolute;inset:0;width:100%;height:100%;
+    fill:none;stroke:rgba(var(--gold-rgb),.45);
+    /* viewBox を引き伸ばして使うので、指定しないと縦横で線の太さが変わる */
+    vector-effect:non-scaling-stroke;stroke-width:1;
+    /* 図の全面を覆うので、指定しないと隙間で操作を横取りする */
+    pointer-events:none;
+  }
+
+  /* 中心の島。白い楕円に絵と名前を収める。楕円と絵の地はどちらも白なので
+     境目は出ない（絵の背景を透過にする必要がない）。 */
+  .hub .hub-center{
+    position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);
+    width:400px;height:210px;
+    margin:0;padding:0 30px 18px;
+    justify-content:flex-end;gap:.15em;
+    border-radius:50%;overflow:hidden;
+    background:#FFFFFF;box-shadow:var(--lift-3);
+  }
+  .hub .hub-scene{
+    display:block;position:absolute;left:0;top:0;
+    width:100%;height:auto;
+  }
+  .hub .hub-center strong{position:relative;color:var(--ink-deep);letter-spacing:.14em;}
+  .hub .hub-center span{position:relative;color:#33455C;line-height:1.6;text-align:center;}
+
+  /* 役割の島。絵とラベルを横に並べ、**絵の中心**を輪の上に乗せる。
+     カード全体の中心を乗せるとラベルの幅だけ島が輪からずれる。 */
+  .hub .nodes{display:block;margin:0;}
+  .hub .nodes .card{
+    position:absolute;left:var(--x);top:var(--y);
+    display:flex;flex-direction:row;align-items:center;gap:16px;
+    width:var(--node-w);padding:0;text-align:left;
+    /* 絵の中心を頂点へ：左端から絵の半分だけ戻す */
+    transform:translate(calc(var(--plate-w) / -2),-50%);
+    /* 図の中では箱を消す。枠のある札が5つ浮いたままでは、輪でつないでも
+       一覧に見えて図にならない。 */
+    background:none;box-shadow:none;
+  }
+  /* 左側の2つはラベルを絵の左に置く（完成イメージのとおり）。
+     並びが逆になるぶん、絵の中心を頂点へ合わせる戻し幅も変わる。 */
+  .hub .nodes .card.is-left{
+    flex-direction:row-reverse;text-align:right;
+    transform:translate(calc(var(--plate-w) / 2 - var(--node-w)),-50%);
+  }
+  .hub .nodes .vignette-center{
+    width:var(--plate-w);height:var(--plate-h);flex:none;
+    max-width:none;margin:0;aspect-ratio:auto;
+    object-fit:cover;border-radius:50%;
+    background:#FFFFFF;box-shadow:var(--lift-3);
+  }
+  .hub .node-txt{width:var(--label-w);}
+  .hub .nodes .card-title{line-height:1.4;}
+  .hub .nodes .card p{margin-top:.2em;line-height:1.6;}
+
+  /* 頂点は真上から時計回り。HTMLの並び順と一致させている。
+     値は楕円（cx50 cy46 rx27 ry34）の上を5等分した点。 */
+  .hub .nodes .card:nth-child(1){--x:50%;  --y:12%;}
+  .hub .nodes .card:nth-child(2){--x:75.7%;--y:35.5%;}
+  .hub .nodes .card:nth-child(3){--x:65.9%;--y:73.5%;}
+  .hub .nodes .card:nth-child(4){--x:34.1%;--y:73.5%;}
+  .hub .nodes .card:nth-child(5){--x:24.3%;--y:35.5%;}
+
+  /* 図の足元。.hub の子はみな絶対配置なので、これだけ流し込みにすると
+     図の**上**に出る（実際に輪と島に重なった）。下の空き帯へ絶対配置する。 */
+  .hub-foot{
+    position:absolute;left:0;right:0;bottom:6px;
+    display:flex;align-items:center;justify-content:center;gap:1.2em;
+    margin:0;font-family:var(--serif);font-size:17px;letter-spacing:.32em;
+    color:var(--paper-soft);
+  }
+  .hub-foot::before,.hub-foot::after{
+    content:'';width:96px;height:1px;background:rgba(var(--gold-rgb),.45);
+  }
+}
+/* 深海のカードのホバー（地と文字を入れ替え、3px浮かせる）は、箱の無い
+   図の島では困る。地が無いまま紺の題字になって消え、transform も
+   輪の上の配置を打ち消してしまう。図のときは何も起こさない。 */
+@media (min-width:1200px) and (hover:hover){
+  .hub .nodes .card:hover{
+    background:none;box-shadow:none;
+    transform:translate(calc(var(--plate-w) / -2),-50%);
+  }
+  .hub .nodes .card.is-left:hover{
+    transform:translate(calc(var(--plate-w) / 2 - var(--node-w)),-50%);
+  }
+  /* 文字色も一つずつ戻す。親の color を戻すだけだと、題字は紺のまま
+     紺地に残って消える（元の反転が個別指定で効いているため）。 */
+  .hub .nodes .card:hover .card-title{color:#fff;}
+  .hub .nodes .card:hover p{color:var(--paper-soft);}
+}
+
+/* チェックリスト ―「自分が対象かどうか」を確かめる、判断の要になる箱。
+   ほかのカードと同じ体裁だと読み飛ばされるので、ここだけ強く見せる。
+   金の枠を太くし、左に金の帯を立て、内側に淡い光を入れて浮かせる。 */
+.checklist{
+  margin-top:34px;padding:30px;
+  border-radius:var(--r-lg);   /* 1枚で器いっぱいを占めるので大きい丸みの側 */
+  /* 地も枠も .tier-deep .card がまとめて持っている（枠は1px・濃さ.45）。
+     ここで background や box-shadow を書いても、詳細度で .tier-deep .card に
+     負けて効かない。左だけ5pxの金の帯を立てていたが、同じ箱の中で線の
+     太さが変わって見えると指摘を受けて外した（2026-09-05）。 */
+}
+.checklist .card-title{
+  font-size:26px;letter-spacing:.02em;
+  padding-bottom:.5em;margin-bottom:.2em;
+  border-bottom:1px solid rgba(var(--gold-rgb),.35);
+}
+.checklist ul{display:grid;gap:.9em;margin-top:.8em;}
+.checklist li{
+  position:relative;padding-left:2em;
+  font-size:18px;line-height:1.85;color:var(--paper);
+}
+@media (hover:hover){
+  .checklist{transition:background-color .2s ease, box-shadow .2s ease, transform .2s ease;}
+  /* 地と文字の入れ替えは「深海のカードのホバー」がまとめて持っている。
+     ここは影の強さだけを、チェックリストの大きさに合わせて足す。 */
+  .tier-deep .checklist:hover{
+    box-shadow:
+      var(--ring-strong),
+      0 0 26px rgba(var(--gold-rgb),.45),
+      0 0 56px rgba(126,196,246,.34),
+      0 20px 44px rgba(3,14,32,.52);
+  }
+}
+.checklist li::before{
+  content:'';position:absolute;left:0;top:.42em;
+  width:1.15em;height:1.15em;border-radius:50%;
+  background:var(--gold);
+}
+.checklist li::after{
+  content:'';position:absolute;left:.3em;top:.72em;
+  width:.5em;height:.26em;
+  border-left:2px solid var(--ink-deep);border-bottom:2px solid var(--ink-deep);
+  transform:rotate(-45deg);
+}
+.checklist .sub{display:block;font-size:15px;color:var(--paper-soft);}
+
+/* スケジュール */
+/* 3列×2段のカードだと、6件が「並んだ塊」に見えて順番が読み取れない。
+   1件1行にして、左に時期・右に内容を置く。左端の色が段々と濃くなるので、
+   上から下へ進んでいくことが色でも分かる。 */
+.timeline{display:flex;flex-direction:column;gap:16px;}
+.timeline .card{
+  display:grid;grid-template-columns:minmax(176px,23%) 1fr;
+  align-items:stretch;padding:0;overflow:hidden;text-align:left;
+  border-radius:var(--r-lg);   /* 器いっぱいの帯なので、大きい丸みの側 */
+}
+/* 左の帯。金の濃さを1→6で深くして、進行を色でも見せる（下の .s1〜.s6）。
+   文字は必ず紺。金地に水色だと読めない（.tier-deep .card p に負けるので、
+   .timeline を頭に付けて詳細度で勝たせている）。 */
+.timeline .tl-when{
+  display:flex;flex-direction:column;justify-content:center;gap:.45em;
+  padding:22px 20px;color:var(--ink-deep);background:var(--gold);
+}
+/* 「STEP 1」と書いていたが、AIの作った資料でよく見る型なのでやめた
+   （2026-09-11）。日付が見出しとして働くので、番号だけを丸い印にする。
+   1文字なので letter-spacing は入れない（右にだけ余白が付いて中心がずれる）。 */
+.timeline .tl-step{
+  align-self:flex-start;
+  display:flex;align-items:center;justify-content:center;
+  width:27px;height:27px;flex:none;border-radius:50%;
+  font-family:var(--serif);font-size:15px;font-weight:700;
+  color:var(--gold);background:var(--ink-deep);
+}
+.timeline .tl-date{
+  font-family:var(--serif);font-size:21px;font-weight:600;line-height:1.35;
+  color:var(--ink-deep);
+}
+.timeline .tl-body{padding:22px 26px;display:flex;flex-direction:column;justify-content:center;}
+.timeline .card-title{font-size:22px;}
+.timeline .tl-body p{margin-top:.5em;font-size:16.5px;}
+
+/* 段の色は :nth-child で取る。s1〜s6 のようなクラスを付けてはいけない ――
+   生き物の配置クラスと同じ名前で、スマホでは .sec-schedule .s1{display:none}
+   に巻き込まれてカードが1枚まるごと消えた（2026-08-31）。 */
+/* 7段（2026-10-14 に6→7段）。両端の色は以前のまま、間を等分した。
+   最も濃い #B5883C でも紺の文字と 4.9:1。これより濃くすると AA を割る。 */
+.timeline .card:nth-child(1) .tl-when{background:#E8CE8E;}
+.timeline .card:nth-child(2) .tl-when{background:#E0C280;}
+.timeline .card:nth-child(3) .tl-when{background:#D7B773;}
+.timeline .card:nth-child(4) .tl-when{background:#CEAB65;}
+.timeline .card:nth-child(5) .tl-when{background:#C69F57;}
+.timeline .card:nth-child(6) .tl-when{background:#BE944A;}
+.timeline .card:nth-child(7) .tl-when{background:#B5883C;}
+
+/* 時点の明記（依頼主 2026-10-14「2026年10月時点の予定」）。
+   見出しのすぐ下に小さな札で置き、リード文とは別の情報として見せる。 */
+.sched-asof{
+  display:inline-block;margin:-.4rem 0 1rem;
+  padding:.3em 1em;border-radius:999px;
+  font-size:14px;font-weight:700;letter-spacing:.04em;
+  color:var(--ink-deep);background:var(--gold);
+}
+
+/* 工程の状態。script.js が日付から is-done / is-now を付ける。
+   終わった工程は灰色に退かせ、いま進んでいる工程（公開時点では募集）を
+   金の縁と札で目立たせる。灰色でも文字は読める濃さを保つ ――
+   薄める（opacity）と AA を割るので、色そのものを差し替える。 */
+.timeline .card.is-done .tl-when{background:#AEB7C2;}
+.timeline .card.is-done .tl-step{color:#D9DEE4;background:#3B4A5C;}
+.timeline .card.is-done{background:#14304F;}
+.timeline .card.is-done .card-title{color:#C3CFDC;}
+.timeline .card.is-done .tl-body p{color:#AFC0D2;}
+.timeline .card.is-done .tl-when::after{
+  content:'終了';align-self:flex-start;
+  padding:.1em .8em;border-radius:999px;
+  font-size:12.5px;font-weight:700;color:#fff;background:#3B4A5C;
+}
+.timeline .card.is-now{
+  box-shadow:inset 0 0 0 2px var(--gold), 0 0 24px rgba(var(--gold-rgb),.42), var(--lift-3);
+}
+.timeline .tl-badge{
+  display:none;align-self:flex-start;
+  padding:.15em .9em;border-radius:999px;
+  font-size:13px;font-weight:700;letter-spacing:.06em;
+  color:var(--gold);background:var(--ink-deep);
+}
+.timeline .card.is-now .tl-badge{display:inline-block;}
+
+/* ── 事業説明動画の枠 ──────────────────────────────
+   動画が入る面。まだ無いので「Coming Soon」を出している。
+   用意できたら .video-frame の中身を <iframe> か <video> に差し替える
+   （枠は 16:9 に固定してあるので、差し替えてもページの高さは変わらない。
+   このページは背景がページ全高に対する%で決まるため、高さが動くと
+   以降の節の色と生き物の位置がまとめてずれる）。 */
+.video-frame{
+  width:100%;max-width:880px;margin:0 auto;
+  aspect-ratio:16 / 9;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:.15em;
+  border-radius:var(--r-lg);
+  /* 動画が乗る面なので暗く。中層の明るいカードと同じ地にすると、
+     あとで動画を入れたときに枠だけ白く残って浮く。 */
+  background:var(--card-deep);
+  box-shadow:var(--ring), var(--lift-2);
+  overflow:hidden;
+}
+/* 飾りを置く台。枠より広く取り、はみ出したぶんが左右の縁取りになる。 */
+.video-stage{position:relative;margin:26px auto 0;width:100%;}
+
+/* 飾りの置き方は画面の広さで変える。
+
+   **1000px 未満では枠の中に敷く。** 枠は .wrap いっぱいまで広がるので、
+   外に出す余地が（画面との差＝左右24pxしか）無い。実際 390px では
+   縁取りがほぼ画面の外へ出て見えなかった（実測 2026-09-10）。
+   枠の幅が 880px で頭打ちになる 1000px 以上でだけ、外に出す余地ができる
+   （1000pxで左右60px、1280pxで200px）。
+
+   絵は透過なので、中に敷いても外に出しても同じ1枚で足りる。 */
+.video-deco{
+  position:absolute;inset:0;width:100%;height:100%;
+  max-width:none;object-fit:cover;
+  border-radius:var(--r-lg);   /* 枠と同じにする。ずれると縁が二重に見える */
+  /* 枠の地より前、文字より後ろ。枠には z-index を持たせない（持たせると
+     重なりの箱ができて、中の文字を飾りより前に出せなくなる）。 */
+  z-index:1;pointer-events:none;
+}
+.video-frame{position:relative;}
+/* 中に敷くときは、文字の下だけ紺を戻す。飾りの上に白系の文字を置くと
+   サンゴの明るい部分に乗って読めない（390pxで「準備中です」が 1.19:1、
+   Coming Soon が 1.95:1 まで落ちた。実測 2026-09-10）。
+   中央だけ濃く、縁へ向けて消えるので、左右のサンゴは見えたまま残る。 */
+.video-frame::before{
+  content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(74% 50% at 50% 52%,
+    rgba(10,38,72,.92) 0%, rgba(10,38,72,.92) 46%, rgba(10,38,72,0) 100%);
+}
+.video-play,.video-soon,.video-note{position:relative;z-index:2;}
+
+@media (min-width:1000px){
+  /* 外に出したときは飾りが枠の中に無いので、幕は要らない */
+  .video-frame::before{display:none;}
+}
+
+@media (min-width:1000px){
+  /* 枠の**外**を縁取る（依頼主 2026-09-10「画面の中ではなく外を」）。
+     枠より後ろへ回すので、枠に重なる内側は隠れ、外へ出たぶんだけが見える。 */
+  .video-deco{
+    inset:auto;left:50%;bottom:0;translate:-50% 0;
+    /* 枠の幅を基準にする。168% なら枠の左右に枠幅の34%ずつ出る。
+       画面からはみ出したぶんは body の overflow-x:clip が切る
+       （この絵は aria-hidden なので検査にも掛からない）。 */
+    width:min(1400px, 168%);height:auto;
+    object-fit:fill;border-radius:0;
+    z-index:0;
+    /* 絵は枠と同じ 16:9。横に広げるとその比のぶん上にも伸び、海藻が上の
+       リード文に掛かる（1280px で枠の上端より225px上まで来る）。
+       上ほど薄くして枠の上端あたりで消す。切り落とすと筆が途中で切れて
+       横線に見えるので、ぼかして抜く。
+       実測：この帯に残る濃さは平均1%、最も濃い点も枠のすぐ脇。 */
+    -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 34%);
+            mask-image:linear-gradient(180deg,transparent 0,#000 34%);
+  }
+}
+
+/* 差し替え後もそのまま収まるように、中に入る映像は枠いっぱいにする */
+.video-frame > iframe,
+.video-frame > video{position:absolute;inset:0;width:100%;height:100%;border:0;}
+/* 再生の印。これが無いと、ただの暗い箱に見えて何の枠か伝わらない */
+.video-play{
+  width:clamp(54px,7vw,74px);aspect-ratio:1;
+  border-radius:50%;
+  box-shadow:inset 0 0 0 2px rgba(var(--gold-rgb),.7);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:.5em;
+}
+.video-play::before{
+  content:'';
+  border-style:solid;
+  border-width:.42em 0 .42em .72em;
+  border-color:transparent transparent transparent var(--gold);
+  font-size:clamp(20px,2.6vw,28px);
+  margin-left:.18em;
+}
+.video-soon{
+  margin:0;
+  font-family:var(--serif);font-size:clamp(24px,3.2vw,40px);
+  letter-spacing:.16em;color:var(--gold);line-height:1.2;
+}
+.video-note{margin:.5em 0 0;font-size:14.5px;color:var(--paper-soft);}
+
+/* ── 共通課題アンケートへの導線 ─────────────────────
+   Googleフォーム（業種ごとに3つ）へ送る。県側の確認済み（2026-09-10）。
+   外部へ移動するので別タブで開き、印を添える。読み上げには
+   「アンケート・新しいタブで開きます」を隠し文字で足してある。
+
+   置き場所は2か所。募集テーマの各カード（業種と1対1で迷わない）と、
+   お申し込みの節（お申し込みフォームが準備中のあいだ、ここが唯一の
+   実働導線になる）。同じリンクを2か所に置いているので、URLを変える
+   ときは両方直すこと（index.html を forms.gle で検索すれば6件出る）。 */
+
+/* 読み上げ専用。tools/onpaper.js は4px未満の箱の文字を測らない。 */
+.sr-only{
+  position:absolute;width:1px;height:1px;
+  margin:-1px;padding:0;border:0;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;
+}
+.ext{width:15px;height:15px;flex:none;opacity:.85;}
+
+/* テーマのカードの中。カードの下端にそろえて置く。
+
+   下線付きの文字リンクにしていたが、明るいカードの上で細く沈み、
+   押せるものに見えなかった（依頼主 2026-09-10）。地を塗った札にして、
+   カードの幅いっぱいに広げる。 */
+.theme-survey{
+  display:flex;align-items:center;justify-content:center;gap:.5em;
+  /* カードの高さが違っても下端でそろう。地を塗るので、本文との隙間は
+     padding ではなく margin で取る（padding だと札が縦に伸びる）。 */
+  margin:18px 0 0;margin-top:auto;
+  width:100%;min-height:48px;
+  padding:12px 16px;
+  border-radius:999px;
+  font-size:15px;font-weight:700;letter-spacing:.02em;
+  text-align:center;
+  background:var(--brand);color:#fff;
+  box-shadow:var(--lift-1);
+  transition:background .18s ease, color .18s ease, box-shadow .18s ease;
+}
+.theme-survey .ext{opacity:1;}
+/* カードを縦に伸ばして、ボタンを下端へ落とす */
+.sec-themes .card.theme{display:flex;flex-direction:column;}
+/* カードの中身が詰まっていると margin-top:auto は 0 になり、本文に
+   くっついてしまう。直前の一文に下の余白を持たせて隙間を保証する。 */
+.sec-themes .card.theme .arrow{margin-bottom:12px;}
+@media (hover:hover){
+  /* 押せるものは色が入れ替わる ―― ページ全体で揃えている作法 */
+  .theme-survey:hover{background:#fff;color:var(--brand);box-shadow:inset 0 0 0 2px var(--brand), var(--lift-1);}
+}
+.theme-survey:focus-visible{outline:3px solid var(--gold);outline-offset:3px;}
+
+/* お申し込みの節。3業種を横に並べる */
+.survey{
+  margin:0 0 26px;padding:22px 24px;
+  border-radius:var(--r-lg);   /* 器いっぱいの帯 */
+  background:var(--card-deep);
+  box-shadow:var(--ring);
+}
+.survey-lead{margin:0 0 16px;font-size:15.5px;line-height:1.9;color:var(--paper);}
+.survey-lead strong{color:var(--gold);}
+.survey-btns{display:flex;flex-wrap:wrap;gap:12px;}
+/* .btn の見た目を借りつつ、金の縁の落ち着いた形にする */
+.btn-survey{
+  flex:1 1 220px;
+  gap:.6em;
+  font-size:16px;
+  background:rgba(255,255,255,.06);color:var(--paper);
+  box-shadow:var(--ring-strong);
+}
+@media (hover:hover){
+  .btn-survey:hover{background:var(--gold);color:var(--ink-deep);box-shadow:none;}
+}
+@media (max-width:520px){
+  .survey{padding:18px 16px;}
+  .survey-btns{flex-direction:column;}
+  .btn-survey{flex:1 1 auto;font-size:15px;}
+}
+
+/* 注記 */
+.note{
+  margin-top:2.4rem;padding:18px 24px;border-radius:var(--r-sm);
+  font-size:16.5px;line-height:1.85;
+  /* 幅は器いっぱい。上に並ぶカードの右端と揃わないと、注記だけが
+     半端な位置で切れて、面が崩れて見える（以前は 52em で止めていたが、
+     依頼主から幅を揃えるよう指摘を受けた 2026-08-31）。
+     注記はどれも1〜2行なので、行が長くなる問題は起きない。 */
+  max-width:none;
+  /* 生き物を幕より上に出したぶん、半透明の地だと絵が透けて文字の
+     コントラストが 4.26:1 まで落ちた（狭い画面の注記3か所）。
+     透過を減らして、後ろに何が来ても注記が読めるようにする。 */
+  background:#FFFFFF;
+  box-shadow:var(--ring);
+  color:var(--ink);
+}
+.tier-deep .note{
+  /* .6 だと後ろの生き物が透けて地が明るくなり、薄い色の文字が
+     4.26:1 まで落ちた（狭い画面のFAQと申込の注記）。生き物を幕より
+     上に出したので、ここも透過を減らして後ろに左右されないようにする。 */
+  background:var(--card-deep);
+  box-shadow:var(--ring);
+  color:var(--paper-soft);
+}
+
+/* ============================================================
+   ボタンとCTA
+   ============================================================ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:52px;padding:0 30px;border-radius:999px;
+  font-weight:700;font-size:17.5px;letter-spacing:.02em;
+  transition:transform .18s ease, box-shadow .18s ease;
+}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:0 6px 18px rgba(12,40,76,.28);}
+.btn-ghost{background:rgba(255,255,255,.9);color:var(--ink);box-shadow:var(--ring-strong);}
+/* ホバーで地と文字を入れ替える。浮くだけの変化では「押せる」ことが
+   伝わりにくい。反転後も紺と白の組み合わせなので約12:1あり、
+   どちらの状態でも読める。 */
+/* 触れる端末では :hover が「触った状態のまま」残る。囲わないと、
+   指を離してもボタンが反転したままになる（とくに画面下に居続ける
+   .sticky-cta は、一度押すと以降ずっと白地のまま）。カードのホバーは
+   最初から囲ってあったが、ボタン類が漏れていた（2026-09-05）。 */
+@media (hover:hover){
+  .btn:hover{transform:translateY(-2px);}
+  .btn-primary:hover{background:#fff;color:var(--brand);box-shadow:inset 0 0 0 2px var(--brand), 0 8px 22px rgba(12,40,76,.3);}
+  .btn-ghost:hover{background:var(--brand);color:#fff;box-shadow:inset 0 0 0 1.5px var(--brand), 0 8px 22px rgba(12,40,76,.3);}
+}
+
+/* 深い紺の水の上に置くボタン。
+   紺地に紺のボタン、あるいは白い縁取りだけのボタンでは、まわりの水に
+   沈んで「押せるもの」に見えない。金で塗って一段大きくする。
+
+   背景は必ず単色で宣言する。グラデーションだけにすると
+   backgroundColor が transparent になり、検証ツールが下地を
+   セクションの紺と誤認して「紺地に紺の文字」と判定してしまう。
+   艶はその上に重ねる薄い白黒のグラデーションで付ける。 */
+.btn-accent{
+  min-height:64px;padding:0 44px;font-size:19px;
+  background-color:#DDBB6E;
+  background-image:linear-gradient(180deg,rgba(255,255,255,.34),rgba(0,0,0,.07));
+  color:var(--ink-deep);
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255,255,255,.55),
+    0 10px 26px rgba(var(--gold-rgb),.30),
+    0 2px 0 rgba(0,0,0,.12);
+}
+/* 反転しても 8.6:1 → 10.1:1 で、どちらの状態でも十分読める */
+@media (hover:hover){
+  .btn-accent:hover{
+    background-color:var(--ink-deep);
+    background-image:none;
+    color:#E9CE8A;
+    box-shadow:inset 0 0 0 2px var(--gold), 0 12px 30px rgba(3,14,32,.5);
+  }
+}
+
+/* セクション末尾の導線。デスクトップは固定CTAが無いため、
+   読み進めた先々で申し込みへ戻れるようにしておく。 */
+/* セクション末尾の導線。幅は上に並ぶ器（カード・注記）と同じ
+   .wrap いっぱいにそろえる。中央に短いボタンが1つ浮いていると、上の
+   面と縁が合わず、そこだけ別の部品に見える（依頼主 2026-09-07）。
+   これは「器の幅は揃える」という全セクション共通の約束と同じ考え方。 */
+.section-cta{margin-top:2.4rem;}
+.section-cta .btn{display:flex;width:100%;}
+
+/* カードの前に置く注記。後ろに置くときの 2.4rem は、次に来るものが
+   無い前提の余白なので、ここでは上を詰めて下を空ける。 */
+.note-lead{margin-top:.4rem;margin-bottom:1.6rem;}
+
+.cta-grid{margin-bottom:0;}
+/* 「事業説明動画を見る」を一時非表示にしている間は2枚（2026-10-14）。
+   3列の格子のままだと右に1コマ空くので、2列にして器の幅いっぱいに並べる。 */
+.cta-grid-2{grid-template-columns:repeat(2,1fr);}
+/* 参加申込はこの節の主役なので、金の縁を太くして先に目に入るようにする */
+.tier-deep .cta-apply{box-shadow:var(--ring-strong), 0 0 20px rgba(var(--gold-rgb),.28), var(--lift-2);}
+/* 外部（Googleフォーム）へ出るカードは、矢印の代わりに別タブの印を置く */
+.cta-ext{
+  position:absolute;right:18px;top:50%;margin-top:-10px;
+  width:20px;height:20px;color:var(--gold);
+}
+@media (hover:hover){ .cta:hover .cta-ext{color:var(--ink-deep);} }
+
+/* お問い合わせ先（依頼主 2026-10-14）。カードほど構えず、
+   金の細線で囲った情報の箱にする。押せるのはメールと電話だけ。 */
+.contact{
+  margin-top:28px;padding:22px 26px;
+  border-radius:var(--r-md);
+  background:rgba(4,18,40,.55);
+  box-shadow:var(--ring);
+  color:var(--paper);
+}
+.contact-h{
+  font-family:var(--serif);font-size:18px;font-weight:700;color:var(--gold);
+  margin:0 0 .6em;
+}
+.contact-org{margin:0;font-size:16px;line-height:1.8;color:#fff;font-weight:500;}
+.contact-agent{margin:.4em 0 0;font-size:15px;color:var(--paper-soft);}
+.contact-ways{display:flex;flex-wrap:wrap;gap:8px 28px;margin:.9em 0 0;}
+.contact-ways li{display:flex;align-items:center;gap:.7em;}
+.contact-k{
+  padding:.1em .75em;border-radius:999px;font-size:13px;font-weight:700;
+  color:var(--ink-deep);background:var(--gold);
+}
+.contact-ways a{
+  display:inline-flex;align-items:center;min-height:44px;
+  font-size:17px;font-weight:700;color:#fff;
+  text-decoration:underline;text-decoration-color:rgba(var(--gold-rgb),.7);
+  text-underline-offset:.25em;word-break:break-all;
+}
+@media (hover:hover){ .contact-ways a:hover{color:var(--gold);} }
+.cta{
+  gap:.3em;min-height:112px;justify-content:center;
+  padding-right:46px;
+  transition:transform .18s ease;
+}
+/* 紺のカードを明るい地に反転させる。文字色もまとめて入れ替える */
+@media (hover:hover){
+  .cta:hover{transform:translateY(-3px);background:rgba(248,252,255,.96);}
+  .cta:hover .card-title{color:var(--ink-deep);}
+  .cta:hover .cta-sub{color:#40566F;}
+  .cta:hover .chev{border-color:var(--ink-deep);}
+}
+.cta-sub{font-size:15px;color:var(--paper-soft);}
+/* 押しても動かないものはリンクにしない。準備中であることを明示する。 */
+/* 押せない案内なので浮かせない。ただし暗いままだと読みにくいので、
+   薄める処理をやめ、触れたときは静かに光らせる。 */
+.cta.is-pending{cursor:default;opacity:1;}
+/* 地と文字の入れ替えは .cta:hover と「深海のカードのホバー」が持つ。
+   ここで暗い地に戻すと、紺文字が紺地に乗って消える。 */
+@media (hover:hover){
+  .tier-deep .cta.is-pending:hover{
+    box-shadow:
+      var(--ring-strong),
+      0 0 22px rgba(var(--gold-rgb),.34),
+      0 10px 26px rgba(3,14,32,.4);
+  }
+  .cta.is-pending:hover{transform:none;}
+}
+.cta-badge{
+  position:absolute;right:16px;top:50%;transform:translateY(-50%);
+  padding:.25em .9em;border-radius:999px;
+  font-size:12.5px;font-weight:700;white-space:nowrap;
+  background:rgba(var(--gold-rgb),.22);color:#EBD9AC;
+  border:1px solid rgba(var(--gold-rgb),.6);
+}
+/* 右端の矢印 */
+.chev{
+  position:absolute;right:20px;top:50%;
+  width:9px;height:9px;margin-top:-5px;
+  border-right:2px solid var(--gold);border-top:2px solid var(--gold);
+  transform:rotate(45deg);
+}
+
+/* ============================================================
+   ヒーロー
+   ============================================================ */
+/* 高さは画面ではなく絵で決める。絵は 16:9 で、下の帯に原爆ドーム・鳥居・
+   広島城が並ぶ。ヒーローが低いと cover が絵を縮めて建物が上がってきて、
+   リード文の下に食い込む（1280pxで 1.52:1 まで落ちた）。高さを確保すると
+   絵が拡大され、建物は本文より下へ逃げる。 */
+/* ヒーローの高さは「画面に収まること」を最優先にする。
+
+   絵で決めていた頃（clamp(980px,79vw,1160px)）は、1160px が画面高より
+   高くなり、100%表示で下が切れた。80%表示にすると収まって良く見える、
+   という指摘を受けた（依頼主 2026-09-05）＝つまり画面高に収めるのが正。
+
+   ただし縮めると cover が絵を縮小して、絵の下の帯にある広島城が
+   上がってきてリード文に掛かる。そこで高さではなく
+   background-position で切り取り位置を上へ寄せて逃がす（.hero-art）。
+   両者は連動しているので、片方だけ変えないこと。 */
+.hero{
+  padding:0;
+  min-height:min(clamp(620px, 79vw, 1160px), calc(100svh - 8px));
+  /* 本文は上に寄せる。中央に置くと、画面が低いとき（1440x800 など）に
+     文字の帯がちょうど絵の下の帯＝広島城の高さへ降りてきて、
+     リード文が 1.22:1 まで落ちた。上寄せなら絵の高さに関わらず、
+     文字は常に絵の上半分（空と紙）の側にいる。 */
+  display:flex;align-items:flex-start;
+}
+/* ヒーローだけは中央寄せの器を外す。位置は絵に合わせるため画面幅で決める */
+.hero > .wrap{width:100%;}
+
+/* 絵は1枚のまま全面に敷く。
+   以前は船団だけを右56%に置き、左はページのクリーム色に任せていた。
+   だが絵の左端がどう減衰しても、そこで「絵が終わる」ことに変わりはなく、
+   画面がくっきり左右に割れて見えた。マスクを弱めても、絵の側だけ
+   紙の質感があるので境目は消えない。
+
+   元絵はもともと「破れた紙 + 海」で1枚に描かれている。焼き込まれた
+   文字だけを消して（tools/build-hero-full.ps1）全面に敷けば、紙から
+   海への移り変わりは絵の中の破れた縁がそのまま担ってくれる。
+   継ぎ目は存在しなくなる。
+
+   下端だけはマスクで抜き、次のセクションの水面へ溶かす。 */
+.hero-art{
+  position:absolute;inset:0;z-index:-1;
+  background:url('assets/img/backgrounds/hero-day-no-stars-v2.jpg') center 28% / cover no-repeat;
+  /* マスクは要素より25%高く作り、下端に合わせて置く。抜けている帯（もや）は
+     いまの見え方のまま ―― 84% は、1.25倍のマスクを下端に合わせたときに
+     要素の 80% に来る位置（(0.80+0.25)/1.25）。
+     位置を上端（0 0）へ動かすと、抜けている帯が要素の外へ出て、もやが
+     まるごと消える。この「位置だけ」をスクロールで動かす（下の @supports）。 */
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 84%,transparent 100%);
+          mask-image:linear-gradient(180deg,#000 0%,#000 84%,transparent 100%);
+  -webkit-mask-size:100% 125%;   mask-size:100% 125%;
+  -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
+  -webkit-mask-position:0 100%;  mask-position:0 100%;
+}
+
+/* 最初の一画面では、絵を下端まで見せる。
+   もや（次の水面へ溶かすための帯）は、下へスクロールしてから出す
+   （依頼主 2026-09-07「初回表示のときは白いスモークが無い状態に」）。
+   出し方は下の .is-smoke-ready / .is-smoked を参照。
+
+   動かすのはマスクの位置だけ。絵にも本文にも触らないので、
+   紙の位置を測っている tools/onpaper.js の前提は変わらない。 */
+/* ── ファーストビューの入り ──────────────────────────
+   ページを開いた瞬間、絵 → 見出し → ロゴ → 説明 → ボタン → ナビ の順に
+   浮かび上がる（依頼主 2026-09-07）。港を出ていく順に見せて情緒を出す。
+
+   動かすのは opacity と translate だけ。レイアウトには関わらせない。
+   終わったあとの値は「何も指定しない状態」と同じなので（both で終端に
+   留めても translate は 0）、tools/onpaper.js が測る文字の位置は変わらない。
+
+   translate を使うのは、transform だと生き物の揺れ（transform）や
+   ハブ図の配置（transform）と潰し合う型を持ち込むため。個別プロパティの
+   translate なら他の指定と重ならない。
+
+   prefers-reduced-motion: reduce では丸ごと効かない＝最初から全部見えている。 */
+@keyframes hero-in  { from{opacity:0;}                 to{opacity:1;} }
+@keyframes hero-rise{ from{opacity:0;translate:0 14px;} to{opacity:1;translate:0 0;} }
+
+@media (prefers-reduced-motion:no-preference){
+  /* 絵。scroll() が使えるブラウザでは、下の @supports が2本立て
+     （入り＋もや）で上書きする。 */
+  .hero-art  {animation:hero-in   .9s        ease-out both;}
+  .hero-title{animation:hero-rise .7s  .35s  ease-out both;}
+  /* ロゴ（船の印）。名前は昼夜の切り替えスイッチも兼ねているが、
+     opacity が 0 の間も押せる。見えないうちに押されても壊れない。 */
+  .hero-brand{animation:hero-rise .7s  .80s  ease-out both;}
+  .hero-sub  {animation:hero-rise .7s 1.15s  ease-out both;}
+  .hero-lead {animation:hero-rise .7s 1.28s  ease-out both;}
+  .hero-cta  {animation:hero-rise .7s 1.60s  ease-out both;}
+  .hero-nav  {animation:hero-rise .7s 1.80s  ease-out both;}
+  /* スマホの目次のボタン。ヒーローのナビは縦画面では出ないので、
+     入りの最後はこれになる。他より少し遅らせて、最後に添える。 */
+  .menu-btn  {animation:hero-rise .7s 1.95s  ease-out both;}
+}
+
+/* もやは「最初に下へスクロールしたこと」を合図に、時間で出しきる
+   （依頼主 2026-09-11）。
+
+   以前は scroll() の時間軸に繋いでいた。出る速さがスクロール量に
+   そのまま連動するので、指を止めるともやも途中で止まり、少し戻すと
+   引っ込む ―― 画面に手を引きずられているように見えた。
+   いまは合図を受け取ったら、あとはスクロールと関係なく0.7秒で出しきる。
+
+   合図は script.js が付ける .is-smoked。その前に .is-smoke-ready で
+   「もやの無い状態」に置く。この2つが付かないとき（JSが動かない、
+   動きを減らす設定）は、もやが最初から出ている状態になる ―― 絵の下端が
+   次の節で硬く切れるよりはよい。 */
+@media (prefers-reduced-motion:no-preference){
+  .is-smoke-ready .hero-art{
+    -webkit-mask-position:0 0; mask-position:0 0;
+    transition:-webkit-mask-position .7s ease-out, mask-position .7s ease-out;
+  }
+  .is-smoked .hero-art{
+    -webkit-mask-position:0 100%; mask-position:0 100%;
+  }
+}
+
+/* 夜の絵。昼の絵と同じ寸法・同じ比率なので、位置指定はそのまま使える。
+
+   background-image に transition を掛けてはいけない。この性質は
+   段階のない入れ替えなので、指定すると溶け合わずに「持続時間の半分だけ
+   遅れて、ぱちんと切り替わる」だけになる（実際に0.7秒の無反応に見えた）。
+   絵が出るまでの間が空かないよう、script.js が最初にマウスが乗った
+   時点で夜の絵を先に読み込んでおく。 */
+.is-night .hero-art{
+  background-image:url('assets/img/backgrounds/hero-night-navy-paper-v7.jpg');
+}
+
+/* 本文は .wrap ではなく画面幅を基準に置く。
+   絵の中の紙は画面の左9%あたりから中央（50%）まで。一方 .wrap は
+   1120px で中央寄せなので、広い画面では左端が20%まで下がってしまい、
+   紙の左3割が空いたまま見出しだけ窮屈になる。
+
+   紙の右端は、画面幅によらずおおむね 44〜45vw に来る（1100〜2560px で
+   実測）。cover の拡大率は画面の縦横比で決まるが、絵が 16:9 で、ヒーロー
+   の高さに上限があるため、結果としてこの範囲に収まる。余裕を見て本文は
+   41vw までに収める。 */
+.hero-inner{
+  position:relative;width:100%;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:32px;
+  padding:104px 4vw 64px 8vw;
+}
+.hero-panel{max-width:min(33vw,620px);}
+
+.hero-title{
+  font-family:var(--serif);
+  /* 紙の中に「越えられる波がある。」の10字が1行で収まる大きさが上限。
+     これを超えると折り返して4行になり、絵の余白と合わなくなる。 */
+  font-size:clamp(26px,3.6vw,54px);
+  font-weight:600;line-height:1.42;letter-spacing:.02em;
+  color:var(--ink);
+  text-shadow:0 2px 18px rgba(251,246,233,.9);
+}
+/* 名前は必ず1行。折り返すと「ひろしま協働DXプロジェ／クト」のように
+   意味の切れない位置で割れて、名前に見えなくなる（依頼主から指摘
+   2026-08-31）。
+
+   字の大きさは画面ではなく「紙の幅」で決まる。文字の総幅は約 13.4em で、
+   印と余白に約44px取られるので、使える幅は「パネル幅 − 44px」。
+   パネルは ≥1280px で min(33vw,620px)、768〜1279px で min(32vw,430px)。
+
+   .hero-panel に container-type:inline-size を付けて cqw で追う手も試したが、
+   パネルは flex の子で内容から幅を得ているため、インライン方向の含みが
+   効いて幅が 0 に潰れた。使わないこと。 */
+/* 昼夜の切り替えスイッチ（ヒーローの名前）。
+
+   指で押さえている間は光を強めて、数えていることを見せる。3秒かけて
+   強まるので、待つ長さがそのまま見える。長押しでiOSの「コピー」の
+   吹き出しが出ると数えが中断されるので、選択と吹き出しを止める。 */
+[data-nightswitch]{
+  position:relative;
+  /* 光を後ろへ回すための入れ物。これが無いと z-index:-1 がページ全体の
+     重なりに出ていき、ヒーローの絵（z-index:-1）と同じ層に落ちる。 */
+  isolation:isolate;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;user-select:none;
+  border-radius:var(--r-sm);
+}
+/* 押している3秒間の合図。**囲いは作らない。**
+   金の角丸の枠は、このページのどこにも無い形（器は水彩と金の細線でできて
+   いる）なので、そこだけ「入力欄の枠」に見えた（依頼主 2026-09-08）。
+
+   代わりに、下線が左から引かれ、後ろから光が差す。線は見出しの下線と
+   同じ言語で、どこまで来たか＝あと何秒かが読み取れる。光は世界観の側。
+
+   どちらも絶対配置にしてある。[data-nightswitch] は display:flex なので、
+   位置を持たせないと擬似要素が flex の項目として並びに入り、gap のぶん
+   ロゴがずれる。 */
+[data-nightswitch]::before,
+[data-nightswitch]::after{content:'';position:absolute;pointer-events:none;}
+/* 光。ロゴの後ろ。楕円にして、絵の高さから大きく外へ出さない */
+[data-nightswitch]::before{
+  inset:-24% -6%;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(var(--gold-rgb),.42), rgba(var(--gold-rgb),0) 62%);
+  opacity:0;transform:scale(.35);
+  z-index:-1;
+}
+/* 線。ロゴの下に、左から引く */
+[data-nightswitch]::after{
+  left:0;right:0;bottom:-.34em;height:3px;
+  background:var(--gold);
+  transform:scaleX(0);transform-origin:left center;
+}
+[data-nightswitch].is-charging::before{
+  opacity:1;transform:scale(1);
+  transition:opacity 3s linear, transform 3s linear;
+}
+[data-nightswitch].is-charging::after{
+  transform:scaleX(1);
+  transition:transform 3s linear;
+}
+/* 動きを減らす設定では、3秒かけずにその場で出す。押している合図そのものは
+   残さないと、3秒待つ理由が伝わらない。 */
+@media (prefers-reduced-motion:reduce){
+  [data-nightswitch].is-charging::before,
+  [data-nightswitch].is-charging::after{transition:none;}
+}
+/* 見出しの中の一部の語に、水彩の下線を敷く（完成イメージのとおり）。
+
+   絵は完成イメージから抜き出したもの（assets/img/deco/brush-*.webp）。
+   紙の地に対してどれだけ暗く／濃くなっているかを画素ごとに測って
+   透過にしてあるので、紙の色が多少違っても馴染む。CSSのグラデーションで
+   引くと、水彩のにじみと筆の入り抜きが出せない。
+
+   語の幅に合わせて伸ばすので、文字が増えても線が足りなくならない。
+   線は文字の下（背景）なので、文字の読みやすさには影響しない。 */
+.brush{
+  background-repeat:no-repeat;
+  background-position:0 calc(100% - .04em);
+  background-size:100% .30em;
+  padding-bottom:.08em;
+}
+.brush-gold{background-image:url("assets/img/deco/brush-gold.webp");}
+/* 青のほうが筆が太いので、少し高さを取る */
+.brush-blue{
+  background-image:url("assets/img/deco/brush-blue.webp");
+  background-size:100% .40em;
+  background-position:0 100%;
+}
+
+.hero-brand{display:flex;align-items:center;gap:.5em;margin-top:1em;flex-wrap:nowrap;}
+.hero-mark{width:clamp(38px,3.6vw,52px);height:auto;flex:0 0 auto;}
+
+/* ロゴ（FUNADE）。もらった絵は地が白なので、白を抜いて透過にしてある
+   （tools/webp-bridge.js 経由で WebP 化。README_画像について.md 参照）。
+   紙の上でも夜の絵の上でも、四角い白地が出ない。
+
+   組みは画面の幅で変える（HTML の <picture>）。389px以下だけ縦組み。
+   横組みのままだと、狭い幅に印と文字を詰め込むぶん文字が小さくなりすぎる。
+
+   大きさは「文字段の幅いっぱい」。もらった完成イメージでは
+   ロゴの幅＝タイトルの行幅（画面の約38%）で、左端もタイトルと揃っている。
+   25vw で置いていたら「配置と大きさが良くない」と指摘を受けた（2026-09-07）。
+   幅は器（.hero-brand）に任せるので、画面幅ごとに数字を持たなくてよい。 */
+.hero-logo{display:block;flex:1 1 auto;min-width:0;}
+.hero-logo img{width:100%;max-width:520px;height:auto;display:block;}
+/* 横長の絵のときは、紙が文字段より右へ広い。実測すると 1440px で、
+   ロゴの行の紙は x736 まで続いていて、文字段（x590まで）より146px余る。
+   完成イメージのロゴはもっと大きいので、その余りまで使う。
+   42vw は、左端8vw から始めて紙の右端に届かない値（1440pxで604px、
+   1920pxで上限の660px）。紙から出ると、透過のロゴが水の上に乗る。 */
+@media (min-width:768px) and (min-aspect-ratio:13/10){
+  .hero-logo img{width:min(42vw,660px);max-width:none;}
+}
+@media (max-width:389px){
+  /* 縦組みは背が高いので、幅で抑える（高さは幅の約0.73倍） */
+  .hero-logo img{width:min(100%,200px);}
+}
+/* ロゴが出ているときは、名前の文字は読み上げのためだけに残す
+   （フッターのロゴと同じ扱い）。ロゴが読めなければ文字が出る。 */
+.hero-brand:has(.hero-logo) span{
+  position:absolute;width:1px;height:1px;
+  margin:-1px;padding:0;border:0;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;
+}
+.hero-brand span{
+  font-family:var(--serif);font-weight:700;
+  color:var(--ink);
+  white-space:nowrap;
+  font-size:min(2.15vw, 38px);
+}
+.gold{color:var(--gold-deep);}
+.hero-sub{font-size:clamp(14px,1.3vw,17.5px);letter-spacing:.04em;color:var(--ink-soft);margin-top:.3em;}
+/* 字を大きくしたぶん1行が伸び、右端が紙の縁を越えて 3.3:1 まで落ちた。
+   紙の幅は決まっているので、字を大きくしたら行は短くする。 */
+.hero-lead{font-size:clamp(16px,1.35vw,19px);line-height:1.95;color:var(--ink);margin-top:1.4em;max-width:27em;}
+.hero-cta{display:flex;gap:14px;margin-top:2em;flex-wrap:wrap;}
+
+/* 右上の浮かぶナビ。完成イメージの構成に合わせている */
+/* 縦の中央に置くと、ちょうど絵のしまなみの橋と重なる高さに来る。
+   橋より上（絵の空の部分）へ上げる（依頼主 2026-09-05）。 */
+.hero-nav{display:flex;flex-direction:column;gap:10px;flex:none;
+  align-self:flex-start;margin-top:0;}
+.hero-nav a{
+  position:relative;
+  display:flex;align-items:center;
+  min-width:210px;min-height:46px;
+  padding:0 40px 0 20px;border-radius:var(--r-sm);
+  font-size:14.5px;font-weight:700;
+  background:var(--nav-bg);color:var(--nav-fg);
+  /* color に transition を掛けてはいけない。値が var() で、その変数自体が
+     昼夜で入れ替わる形の transition は開始値で固まる（実際に中層の見出しで
+     踏んだ罠。CLAUDE.md 参照）。地の色も同じ理由で外してある。 */
+}
+@media (hover:hover){
+  .hero-nav a:hover{background:#fff;color:var(--brand);box-shadow:inset 0 0 0 1.5px var(--brand);}
+  .hero-nav a:hover .chev{border-color:var(--brand);}
+  /* 夜は金地なので、白へ反転すると変化が小さい。紺地に金字へ反転させる。 */
+  .is-night .hero-nav a:hover{background:var(--ink-deep);color:#E9CE8A;box-shadow:var(--ring-strong);}
+  .is-night .hero-nav a:hover .chev{border-color:#E9CE8A;}
+}
+.hero-nav .chev{border-color:var(--nav-fg);right:18px;}
+
+/* ============================================================
+   フッター
+   ============================================================ */
+.site-footer{
+  position:relative;
+  /* 背景は敷かない。ページのグラデーションをそのまま continue させる。
+     塗ると終端色とずれて上端に水平の段差が出る。区切りは金の細線で示す。 */
+  border-top:1px solid rgba(var(--gold-rgb),.35);
+  color:var(--paper-soft);
+  padding:56px 0 44px;
+  text-align:center;
+}
+.site-footer > .wrap{position:relative;z-index:2;}
+/* 上段は左右2段。左にプロジェクト、右に実施主体。
+   縦に積むと、ロゴ・愛称・正式名称・主催の板が4段になって
+   フッターだけで1画面近く使ってしまう（依頼主 2026-09-07）。
+   900px より狭いところでは、これまで通り中央そろえで積む。 */
+.foot-cols{margin:0 auto;}
+@media (min-width:900px){
+  /* 白い板を左右の端に置き、その下に「名前 → 説明」を同じ順で並べる。
+     左右で行の構成をそろえてあるので、板も文字も高さが合う。
+     以前は右だけ「ラベル → 板 → 説明」の3行構成で、板が左より81px下に
+     落ちていた（実測 2026-09-07。依頼主から「美しくない」）。 */
+  .foot-cols{
+    display:flex;align-items:flex-start;justify-content:space-between;
+    gap:40px;
+  }
+  /* 段の中はすべて中央ぞろえ。板・名前・説明が板の真ん中で1本に通る
+     （完成イメージ 2026-09-07 のとおり）。段の幅は中身が決めるので、
+     左は板が、右は長い一文が幅を決め、板はその中央に来る。 */
+  .foot-id,.credit{flex:0 1 auto;text-align:center;}
+}
+
+/* フッターのロゴ。ロゴは白地で使う前提の色（紺の文字）なので、
+   紺のフッターに直接置くと沈む。「主催・運営」と同じ白い板に載せる。
+   板の角丸と影もそちらに合わせて、フッターの中で作りを揃える。 */
+/* 2枚の白い板は、大きさ・余白・角丸・影をそろえる。フッターでいちばん
+   明るい面が2つ並ぶので、少しでも寸法が違うと不揃いに見える
+   （以前は 372×99 と 354×90 だった）。 */
+.foot-logo{
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 1.1em;padding:18px 28px;
+  width:fit-content;max-width:100%;min-height:100px;
+  box-sizing:border-box;
+  border-radius:var(--r-md);
+  background:#fff;
+  box-shadow:var(--lift-3);
+}
+.foot-logo img{width:min(300px,68vw);height:auto;display:block;}
+
+.foot-brand{
+  display:flex;align-items:center;justify-content:center;gap:.45em;
+  font-family:var(--serif);font-size:20px;font-weight:600;color:#fff;
+  line-height:1.4;
+}
+.foot-mark{width:28px;height:auto;}
+/* 正式な業務名と、右段の一文は同じ大きさにそろえる。
+   左右で対になる行なので、片方だけ大きいと段が傾いて見える。 */
+.foot-note{font-size:13.5px;line-height:1.8;margin-top:.6em;color:var(--paper-soft);}
+
+/* --- 実施主体 ---
+   ロゴは白地で使う前提で作られている。紺のフッターに直接置くと、黒い文字が
+   沈んで読めない。白い板を敷いて、その上に載せる。
+
+   ロゴ画像がまだ無い間は社名の文字が出る。img は読めなければ自分を消し、
+   :has(img) が外れて名前が現れる。画像を置けば名前は読み上げ用に退いて、
+   ロゴだけが見える。どちらの状態でもレイアウトは崩れない。 */
+.credit{margin-top:2.2em;}
+/* 板の下に置く小見出し。左段の愛称と同じ行に来る。 */
+.credit-label{
+  font-size:13px;font-weight:700;letter-spacing:.14em;
+  color:var(--gold);line-height:1.4;
+}
+.lockup{
+  display:inline-flex;align-items:center;justify-content:center;
+  flex-wrap:wrap;gap:14px 26px;
+  margin:0 auto 1.1em;padding:18px 28px;
+  min-height:100px;box-sizing:border-box;
+  border-radius:var(--r-md);
+  background:#fff;
+  box-shadow:var(--lift-3);
+}
+/* 左右の板の幅をそろえる。中身（ロゴ2つと×）は 346px 前後、FUNADEの板は
+   356px 前後なので、広い画面では 360px を下限にして同じ幅に見せる。 */
+/* 縦に積むときも2枚の板の幅をそろえる。中身に任せると 356 と 346 になって、
+   真ん中ぞろえでも縁が合わない。 */
+@media (max-width:899px){
+  .foot-logo,.lockup{width:min(360px,100%);}
+}
+@media (min-width:900px){
+  .foot-logo,.lockup{min-width:360px;}
+  /* 「主催・運営」は左の愛称と対になる行なので、同じ書体・同じ大きさに
+     する。12.5pxの小さなラベルのままだと右の段だけ軽く見えた。 */
+  .credit-label{font-family:var(--serif);font-size:20px;letter-spacing:.12em;}
+  /* 縦に積むときの段間（.credit の margin-top:2.2em）は、横に並べるときは
+     不要。**この打ち消しは .credit{margin-top:2.2em} より後ろに書くこと** ――
+     詳細度が同じなので、上の @media (min-width:900px) の中に書いても
+     あとから来る素の .credit に負ける。実際それで右の段だけ40px下がって
+     いて、左右の白い板がそろわなかった（実測 2026-09-07）。 */
+  .credit{margin-top:0;}
+  /* 3行目（正式名称と一文）も高さをそろえる。行の高さが揃っていないと
+     下の行が数pxずれる。 */
+  .credit-label{min-height:28px;}
+}
+
+/* 板を大きく見せるのは 1000px 以上。フッターはページの締めなので、
+   ここだけは白い面をしっかり見せる（完成イメージ 2026-09-07）。
+
+   **900〜999px でこれをやってはいけない。** 左右の板が最低 440px ずつ、
+   間が 40px で計 920px 必要になり、900px の画面では .wrap（852px）から
+   44pxはみ出す（実測。tools/check.js が「中身が画面からはみ出している
+   944 > 900」で検出した 2026-09-07）。この帯では 360px の板のままにする。 */
+@media (min-width:1000px){
+  .foot-logo,.lockup{min-width:440px;min-height:120px;padding:20px 28px;}
+  /* **ここに % を書かないこと。** 板は width:fit-content なので、幅を決める
+     ときに中身の max-content を測る。その計算では % の基準が定まらず
+     auto と同じ扱いになり、ロゴの実寸（1436px）が max-content として効いて
+     板が段いっぱい（640px）まで伸びた（実測 2026-09-07）。 */
+  .foot-logo img{width:384px;}
+}
+/* ロゴは各公式サイトへのリンク（依頼主 2026-09-05）。
+   絵だけのリンクなので、押せる範囲が絵の高さぶんしかないと指で狙えない。
+   上下に余白を入れて 44px を確保する（tools/check.js もここを見る）。 */
+.lockup-item{
+  display:inline-flex;align-items:center;
+  min-height:44px;padding:4px 8px;border-radius:var(--r-sm);
+}
+/* ロゴの高さ。板の内寸に収まる上限は、2つのロゴの幅（高さ×143/72 と
+   高さ×388/192）＋各項目の左右余白16px×2＋間26px×2＋×印26px で決まる。
+   内寸304px（幅360の板）なら48pxまで、384px（幅440の板）なら68pxまで。
+   ここは全画面共通の下限として控えめに置き、余地のある幅で下から上書きする。 */
+.lockup-item img{height:clamp(34px,5vw,46px);width:auto;}
+/* ホバーで色は付けない（依頼主 2026-09-05）。ロゴそのものが目印なので、
+   下地を金に染めると2つのロゴの色が濁って見える。
+   キーボードで辿ったときの居場所だけは残す。 */
+.lockup-item:focus-visible{outline:3px solid var(--gold);outline-offset:2px;}
+.lockup-name{
+  font-family:var(--serif);font-size:18px;font-weight:600;
+  color:var(--brand);white-space:nowrap;
+}
+/* ロゴが表示できたときは、名前は読み上げのためだけに残す */
+.lockup-item:has(img) .lockup-name{
+  position:absolute;width:1px;height:1px;
+  margin:-1px;padding:0;border:0;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;
+}
+.lockup-x{display:inline-flex;}
+.lockup-x svg{width:26px;height:26px;}
+
+.credit-note{
+  font-size:13.5px;line-height:1.8;margin-top:.6em;
+  color:var(--paper-soft);
+}
+
+@media (max-width:520px){
+  .lockup{gap:10px 16px;padding:14px 18px;}
+  /* 余白と間を詰めてあるぶん、内寸322pxに対して58pxまで入る。
+     視認性を優先して52pxまで上げる（依頼主 2026-09-08）。 */
+  .lockup-item img{height:52px;}
+  .lockup-name{font-size:16px;}
+  .lockup-x svg{width:22px;height:22px;}
+}
+/* 広い画面（板が440px）のロゴ。内寸384pxに対して、2つのロゴと×印で366px。
+   上限68pxのところを64pxにして、左右に少しだけ余裕を残す
+   （依頼主 2026-09-08「もっと大きくして視認性を上げる」）。
+
+   **この規則は .lockup-item img の基本指定より後ろに置くこと。**
+   詳細度が同じなので、上の @media (min-width:1000px) の中に書いても、
+   あとから来る clamp(34px,5vw,46px) に負けて46pxのままになる
+   （実際に一度そう書いて効かなかった 2026-09-08）。 */
+@media (min-width:1000px){
+  .lockup-item img{height:64px;}
+}
+
+/* 読み終えた位置から各セクションへ戻れるようにする。
+   ページが9画面分あり、ヒーローのナビはスクロールで流れてしまうため。 */
+.foot-nav{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:.4em 1.4em;
+  margin-top:2.6em;padding-top:1.8em;
+  border-top:1px solid rgba(var(--gold-rgb),.28);
+}
+.foot-nav a{
+  display:inline-flex;align-items:center;min-height:44px;padding:0 .2em;
+  font-size:15px;color:var(--paper-soft);
+}
+@media (hover:hover){ .foot-nav a:hover{color:var(--gold);} }
+.foot-top{margin-top:1.2em;}
+.foot-top a{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;padding:0 1.6em;border-radius:999px;
+  font-size:15px;font-weight:700;color:var(--paper);
+  box-shadow:var(--ring);
+}
+@media (hover:hover){ .foot-top a:hover{background:var(--gold);color:var(--ink-deep);} }
+/* --gold-deep は明るい地の前提の色。最深部の紺では 3.1:1 しか出ない */
+.site-footer .gold{color:#E3C880;}
+
+/* ============================================================
+   よくあるご質問チャット
+
+   画面の**右下**に貼る（依頼主 2026-09-10）。左下から移した。
+   ヒーローの絵は左に文字段、右が海と船で空いているので、右下なら
+   絵の見せ場も文字も踏まない。右上のメニューとは高さで分かれる。
+   JSが動かないときは #chat に hidden が付いたままなので出ない。
+   ============================================================ */
+/* 札は2つ。上に対象診断、下によくあるご質問（依頼主 2026-09-10）。
+   幅は広いほうにそろえる ―― 位置指定の箱は中身の最大幅に縮むので、
+   stretch にすれば狭いほうが引き伸ばされて縦に揃う。 */
+.chat{
+  position:fixed;right:0;left:auto;bottom:24px;z-index:60;
+  display:flex;flex-direction:column;align-items:stretch;gap:10px;
+}
+/* ヒーローの上にも出す。ただし**最初の一枚が出そろってから**。
+   背景→題→船→サブ→ロゴ→ボタン→ナビ の順に 1.80s+0.7s で終わるので、
+   その後に右からすべり込ませる（依頼主 2026-09-10）。
+   最初は is-away を JS が付ける。JSが無ければ札そのものが出ない。 */
+.chat.is-away{opacity:0;visibility:hidden;translate:100% 0;}
+@media (prefers-reduced-motion:no-preference){
+  .chat{transition:opacity .25s ease, translate .25s ease;}
+  .chat.is-away{transition:opacity .25s ease, translate .25s ease, visibility 0s .25s;}
+}
+.chat-launch{
+  display:flex;align-items:center;gap:10px;
+  width:100%;box-sizing:border-box;text-decoration:none;
+  /* 印を画面の端側（右）に、文字をその内側に。HTMLは「文字→印」の
+     並びなので、そのまま置けば印が右に来る。 */
+  flex-direction:row;
+  /* 幅は広いほうにそろえるので、狭い札には余りが出る。余りは画面側（左）に
+     寄せて、印を2枚とも右端でそろえる。 */
+  justify-content:flex-end;
+  padding:10px 12px 10px 18px;
+  border:0;cursor:pointer;
+  /* 右端に貼り付く札。角丸は左側だけ */
+  border-radius:999px 0 0 999px;
+  background:var(--brand);color:#fff;
+  box-shadow:var(--lift-3);
+  font-family:var(--serif);font-size:15.5px;font-weight:600;letter-spacing:.04em;
+  transition:transform .18s ease;
+}
+.chat-launch-mark{
+  display:flex;align-items:center;justify-content:center;
+  width:38px;height:38px;flex:none;border-radius:50%;
+  background:var(--gold);color:var(--ink-deep);
+}
+.chat-launch-mark svg{width:22px;height:22px;}
+@media (hover:hover){ .chat-launch:hover{transform:translateX(-4px);} }
+.chat-launch:focus-visible{outline:3px solid var(--gold);outline-offset:3px;}
+/* 対象診断のほうを主にする。金地で、印は紺に反転させる。 */
+.dock-fit{background:var(--gold);color:var(--ink-deep);}
+.dock-fit .chat-launch-mark{background:var(--ink-deep);color:var(--gold);}
+@media (hover:hover){
+  .dock-fit:hover{background:#E9CE8A;}
+}
+/* 画面の外から入るとき、上の札をわずかに遅らせて順に出す */
+@media (prefers-reduced-motion:no-preference){
+  .chat .dock-fit{transition-delay:.07s;}
+}
+
+/* 開いている間は札を引っ込める。板と重なって二重に見えるため */
+.chat.is-open .chat-launch{display:none;}
+
+.chat-panel{
+  position:fixed;right:14px;left:auto;bottom:14px;
+  width:min(380px, calc(100vw - 28px));
+  max-height:min(620px, calc(100svh - 28px));
+  display:flex;flex-direction:column;
+  border-radius:var(--r-lg);
+  background:var(--card-deep);
+  box-shadow:var(--ring), 0 18px 44px rgba(3,14,32,.5);
+  overflow:hidden;
+}
+.chat-panel[hidden]{display:none;}
+@media (prefers-reduced-motion:no-preference){
+  .chat-panel{animation:chat-in .24s ease-out both;}
+}
+@keyframes chat-in{ from{opacity:0;translate:24px 0;} to{opacity:1;translate:0 0;} }
+
+.chat-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:14px 12px 14px 18px;
+  border-bottom:1px solid rgba(var(--gold-rgb),.35);
+}
+.chat-title{margin:0;font-family:var(--serif);font-size:16px;color:#fff;}
+.chat-close{
+  /* 指で狙える大きさ。このページの決まりは44px（tools/check.js が見る） */
+  width:44px;height:44px;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  border:0;border-radius:50%;background:transparent;color:var(--paper-soft);cursor:pointer;
+}
+.chat-close svg{width:20px;height:20px;}
+@media (hover:hover){ .chat-close:hover{background:rgba(255,255,255,.08);color:#fff;} }
+.chat-close:focus-visible{outline:3px solid var(--gold);outline-offset:-3px;}
+
+.chat-log{
+  flex:1 1 auto;overflow-y:auto;
+  padding:16px 16px 4px;
+  display:flex;flex-direction:column;gap:12px;
+  font-size:14.5px;line-height:1.85;
+}
+/* 吹き出し。相手（このページ）は左、こちらは右 */
+.chat-msg{max-width:88%;padding:11px 14px;border-radius:var(--r-sm);}
+.chat-bot{align-self:flex-start;background:rgba(255,255,255,.07);color:var(--paper);box-shadow:var(--ring);}
+.chat-me{align-self:flex-end;background:var(--gold);color:var(--ink-deep);font-weight:600;}
+.chat-msg strong{color:var(--gold);}
+.chat-me strong{color:var(--ink-deep);}
+.chat-src{display:block;margin-bottom:.35em;font-size:12.5px;color:var(--gold);letter-spacing:.04em;}
+.chat-guess{margin:0 0 .3em;font-size:13px;color:var(--paper-soft);}
+/* 1件ごとの断り。答えの一部として読ませたいので、吹き出しの中に置く */
+.chat-note{display:block;margin-top:.5em;font-size:12px;color:var(--paper-soft);}
+/* 質問の候補ボタン */
+.chat-chips{display:flex;flex-wrap:wrap;gap:8px;align-self:flex-start;max-width:100%;}
+.chat-chip{
+  padding:8px 14px;min-height:44px;
+  border:0;border-radius:999px;cursor:pointer;
+  background:transparent;color:var(--paper);
+  box-shadow:var(--ring);
+  font-size:13.5px;line-height:1.5;text-align:left;
+}
+@media (hover:hover){ .chat-chip:hover{background:var(--gold);color:var(--ink-deep);box-shadow:none;} }
+.chat-chip:focus-visible{outline:3px solid var(--gold);outline-offset:2px;}
+
+.chat-form{display:flex;gap:8px;padding:10px 14px 6px;}
+.chat-input{
+  flex:1 1 auto;min-width:0;min-height:44px;padding:0 14px;
+  border:0;border-radius:999px;
+  background:rgba(255,255,255,.09);color:var(--paper);
+  box-shadow:var(--ring);font-size:15px;
+}
+.chat-input::placeholder{color:rgba(214,231,242,.6);}
+.chat-input:focus-visible{outline:3px solid var(--gold);outline-offset:2px;}
+.chat-send{
+  flex:none;min-height:44px;padding:0 18px;
+  border:0;border-radius:999px;cursor:pointer;
+  background:var(--gold);color:var(--ink-deep);
+  font-size:14.5px;font-weight:700;
+}
+.chat-send:focus-visible{outline:3px solid var(--gold);outline-offset:2px;}
+.chat-foot{margin:0;padding:4px 16px 14px;font-size:12px;line-height:1.7;color:var(--paper-soft);}
+
+/* 追従CTA（767px以下で出る）は画面下いっぱいに座るので、札はその上へ逃がす。
+   CTAは下から14px、高さ54pxで 14〜68px を占める。82pxなら14px空く。 */
+@media (max-width:767px){
+  .chat{bottom:82px;}
+}
+/* スマホでは板を画面いっぱいに近づける */
+@media (max-width:520px){
+  .chat-launch{font-size:14.5px;padding:8px 10px 8px 16px;}
+  .chat-launch-mark{width:34px;height:34px;}
+  .chat-panel{
+    left:8px;right:8px;bottom:8px;width:auto;
+    max-height:min(78svh, calc(100svh - 16px));
+  }
+}
+
+/* ============================================================
+   スマホ用の固定CTA（767px以下でのみ表示）
+   ============================================================ */
+.sticky-cta{display:none;}
+
+/* ============================================================
+   スマホ用の目次（767px以下でのみ表示）
+   ============================================================
+   開閉は <details>。JSが無くても開いて閉じられる。script.js が足すのは
+   「リンクを押したら閉じる」「Escで閉じる」だけ。
+
+   重なりは 目次のボタン(60) > 目次の面(59) > 追従CTA(50)。ボタンを面より
+   上に置かないと、開いたあと閉じるものが押せなくなる。 */
+.menu{display:none;}
+
+@media (max-width:767px){
+  .menu{display:block;}
+
+  .menu-btn{
+    position:fixed;top:12px;right:12px;z-index:60;
+    width:48px;height:48px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:50%;
+    background:var(--brand);
+    box-shadow:var(--lift-3);
+    cursor:pointer;
+    /* 既定の三角を消す。list-style だけでは Safari に残る */
+    list-style:none;
+  }
+  .menu-btn::-webkit-details-marker{display:none;}
+
+  /* 三本線。真ん中の線が要素そのもので、上下は擬似要素。
+     開いたら真ん中を消して上下を×に組み替える。 */
+  .menu-bars,
+  .menu-bars::before,
+  .menu-bars::after{
+    width:20px;height:2px;border-radius:2px;background:#fff;
+  }
+  .menu-bars{position:relative;}
+  .menu-bars::before,.menu-bars::after{content:'';position:absolute;left:0;}
+  .menu-bars::before{top:-6px;}
+  .menu-bars::after{top:6px;}
+  .menu[open] .menu-bars{background:transparent;}
+  .menu[open] .menu-bars::before{top:0;transform:rotate(45deg);}
+  .menu[open] .menu-bars::after{top:0;transform:rotate(-45deg);}
+  @media (prefers-reduced-motion:no-preference){
+    .menu-bars,.menu-bars::before,.menu-bars::after{
+      transition:transform .2s ease, top .2s ease, background-color .2s ease;
+    }
+  }
+
+  .menu-panel{
+    position:fixed;inset:0;z-index:59;
+    display:flex;flex-direction:column;
+    padding:80px 24px 28px;
+    /* 地は不透明。半透明にすると、後ろのグラデーションが上下で変わって
+       面の中で色が動く（器の地は透かさない、の約束）。 */
+    background:var(--card-deep);
+    overflow-y:auto;
+    /* 面の中で指を滑らせたときに、後ろのページまで動かさない */
+    overscroll-behavior:contain;
+  }
+  /* 縦の中央ぞろえは auto の余白で取る。**justify-content:center は使わない。**
+     項目の合計が画面より高いとき（横向きのスマホ）、上の項目が画面の外へ
+     はみ出して、スクロールしても触れなくなる。auto の余白なら、入りきらない
+     ときは 0 に潰れて上から素直に並ぶ。 */
+  .menu-panel a:first-of-type{margin-top:auto;}
+  .menu-panel .menu-cta{margin-bottom:auto;}
+  .menu-panel a{
+    display:flex;align-items:center;
+    min-height:56px;padding:0 6px;
+    font-family:var(--serif);font-size:19px;font-weight:600;
+    color:var(--paper);
+    border-bottom:1px solid rgba(var(--gold-rgb),.28);
+  }
+  /* **`.menu-panel a` より詳細度を上げること。** `.menu-cta` だけだと
+     (0,1,0) で `.menu-panel a` の (0,1,1) に負け、文字色が紙色のまま
+     金地に乗って 2.23:1 まで落ちる（tools/check.js が検出した 2026-09-08）。
+     下線も同じ理由で消えなかった。 */
+  .menu-panel .menu-cta{
+    justify-content:center;
+    margin-top:26px;border-bottom:0;
+    border-radius:999px;
+    background:var(--gold);color:var(--ink-deep);
+    font-weight:700;
+  }
+  @media (hover:hover){
+    .menu-panel a:hover{color:var(--gold);}
+    .menu-panel .menu-cta:hover{background:#fff;color:var(--brand);}
+  }
+}
+
+/* ============================================================
+   タブレット（1099px以下）
+   ============================================================ */
+@media (max-width:1099px){
+  .section{padding:88px 0;}
+  .section + .section,
+  .cta-rail > .section:first-of-type,
+  .deep-zone > .section:first-of-type{padding-top:72px;}
+  .grid-5{grid-template-columns:repeat(3,1fr);}
+  .hero-nav a{min-width:180px;font-size:12.5px;}
+}
+
+/* 768〜1279px：紙が狭くなるぶん、本文も詰める。
+
+   この幅では画面が絵（1.41:1）より縦長寄りになるため、cover は高さ側で
+   合い、絵が丸ごと画面に入る。つまり紙の帯は画面に対して小さくなる。
+   余白と字をそのままにすると、リード文の最終行が紙の下端まで下りて
+   広島の建物（原爆ドーム）に重なり、読めなくなる。実測で最も暗い所が
+   116/255 まで落ちていた。
+
+   左を 13vw まで寄せているのは、その原爆ドームの尖塔を避けるため。 */
+/* 画面が低いとき（ノートPCの 1440x800 / 1366x768 / 1280x720 など）。
+
+   依頼主から「100%表示だと下が切れる、80%表示だと良い」と指摘を受けた
+   （2026-09-05）。80%表示は要するに「窓に対して中身が小さくなる」こと
+   なので、画面が低いときは同じことをする ―― ヒーローの字と余白を
+   画面の高さ（vh）で決めて、絵の入る余地を残す。
+
+   高さを詰めないと二重に困る。1つは下が切れること。もう1つは、絵が
+   ほとんど切り取られないぶん、絵の下の帯（原爆ドーム・広島城）が
+   画面の中に入ってきて、リード文がその上に乗ること（1440x800 で
+   1.22:1 まで落ちた）。字を詰めれば文字の帯が上へ寄り、建物より上で
+   終わる。 */
+@media (min-width:768px) and (max-height:900px){
+  .hero-inner{
+    /* 上を詰めすぎると、今度は見出しが紙の上端を越えて空へ出る。
+       夜は空が暗いので紺の見出しが 2.64:1 まで落ちた。
+       下限 62px は、その手前で止まる値（実測）。 */
+    padding-top:clamp(62px, 8.5vh, 104px);
+    padding-bottom:clamp(20px, 4.5vh, 64px);
+  }
+  .hero-title{font-size:clamp(23px, 4.6vh, 54px);line-height:1.5;}
+  .hero-brand span{font-size:min(1.85vw, 30px);}
+  .hero-mark{width:clamp(30px, 3vw, 44px);}
+  .hero-sub{font-size:clamp(12px, 1.7vh, 16px);}
+  .hero-lead{font-size:clamp(13.5px, 2vh, 18px);line-height:1.8;margin-top:.9em;}
+  .hero-cta{margin-top:1.1em;}
+  /* 44px を割ってはいけない。指で押す領域の下限で、tools/check.js も
+     ここを見ている（40px にして3つとも弾かれた）。 */
+  .hero-nav a{min-height:44px;font-size:13.5px;}
+}
+
+@media (min-width:768px) and (max-width:1279px){
+  .hero{min-height:clamp(900px, 78vw, 1000px);}
+  .hero-inner{padding:76px 4vw 48px 9vw;}
+  .hero-panel{max-width:min(32vw,430px);}
+  /* この帯は紙が 32vw と一段狭いので、名前もそのぶん小さくする。
+     1.9vw なら 768px でも 1行に収まる（実測 上限15.0px に対し14.6px）。 */
+  .hero-brand span{font-size:1.9vw;}
+  .hero-title{font-size:clamp(24px,3.1vw,38px);}
+  /* 紙は下へいくほど狭まる（破れた縁が左へ回り込む）。リード文はその
+     一番狭い高さに乗るので、上の行より短く折り返す必要がある。 */
+  .hero-lead{font-size:15px;line-height:1.85;margin-top:1.1em;max-width:22em;}
+  .hero-cta{margin-top:1.5em;}
+}
+
+@media (max-width:900px){
+  .grid-3{grid-template-columns:repeat(2,1fr);}
+  .grid-5{grid-template-columns:repeat(2,1fr);}
+  .cta-grid{grid-template-columns:1fr;}
+}
+
+/* ============================================================
+   スマホ（767px以下）
+   PC版の縮小ではなく、縦長LPとして組み直す
+   ============================================================ */
+@media (max-width:767px){
+  body{font-size:17px;padding-bottom:76px;}  /* 固定CTAのぶんを空ける */
+  .wrap{width:min(100% - 32px, var(--wrap));}
+
+  .section{padding:60px 0;}
+  .section + .section,
+  .cta-rail > .section:first-of-type,
+  .deep-zone > .section:first-of-type{padding-top:52px;}
+
+  .terms-bar{
+    margin-top:18px;padding:12px 14px;gap:.4em .8em;
+    font-size:14.5px;border-radius:var(--r-lg);
+  }
+  .terms-item + .terms-item{border-left:0;padding-left:0;}
+  .terms-label{font-size:12.5px;}
+
+  /* --- 文字：行長が全角24文字前後に収まるサイズへ --- */
+  h2{font-size:clamp(23px,6.2vw,29px);line-height:1.55;}
+  h2 .h-rule{--rule-w:4px;}
+  .lead{font-size:17px;line-height:1.9;margin-bottom:1.8rem;}
+  .card p{font-size:16.5px;}
+  /* カード内の段（上のほうで節ごとに分けたぶん）は、狭い画面では
+     いちばん下の段だけ 16.5px へ戻す。幅が無いところで文字を
+     小さくしても、階層は伝わらず読みにくさだけが残る。
+     詳細度をそろえないと、外に書いた節ごとの指定に負ける。 */
+  .sec-flow .card > p,
+  .sec-themes .card.theme > p{font-size:16.5px;}
+  .card-title{font-size:21px;}
+  .eyebrow{font-size:13.5px;padding:.45em 1.1em;}
+
+  /* 作者が入れた改行は広い画面向け。狭い画面では
+     <br> の位置で切ったうえにさらに折り返り、行がガタつく。 */
+  h2 br{display:none;}
+
+  /* --- すべて1列に --- */
+  .grid-3,.grid-5{grid-template-columns:1fr;gap:14px;}
+  .card{padding:20px 18px;}
+
+  /* 1列になって横幅に余裕が出るので、挿絵はむしろ大きくしてよい */
+  .vignette{width:34%;max-width:112px;}
+  .vignette-center{width:54%;max-width:150px;}
+  .sec-pain .vignette,
+  .sec-what .vignette{width:auto;max-width:200px;}
+  /* 主軸の寸法は flex-basis:44% が持っている（上と同じ理由で
+     width も max-width も効かない）。スマホでは 142px 前後。 */
+
+  /* --- ヒーロー：縦構図 --- */
+  .hero{min-height:auto;display:block;}
+  .hero-inner{flex-direction:column;padding:72px 0 48px;}
+  .hero .wrap{width:min(100% - 32px, var(--wrap));}
+  .hero-panel{max-width:none;}
+  .hero-title{font-size:clamp(26px,7.4vw,34px);}
+  .hero-lead{font-size:15px;line-height:1.95;}
+  .hero-cta{flex-direction:column;gap:10px;}
+  .hero-cta .btn{width:100%;}
+  /* ナビは横並びの2列に。縦に積むと画面を占有しすぎる */
+  .hero-nav{flex-direction:row;flex-wrap:wrap;width:100%;margin-top:20px;}
+  .hero-nav a{flex:1 1 46%;min-width:0;justify-content:center;padding:0 30px 0 14px;font-size:12.5px;}
+
+  /* --- スケジュール：左右2段を上下2段に折る --- */
+  /* 幅が狭いと左の帯が23%＝80px程度になり、「2026年」で折り返して
+     4行になる。横並びをやめ、時期を上、内容を下に積む。 */
+  .timeline{gap:14px;}
+  .timeline .card{grid-template-columns:1fr;}
+  .timeline .tl-when{
+    flex-direction:row;align-items:center;gap:.9em;
+    padding:12px 18px;
+  }
+  .timeline .tl-date{font-size:18px;}
+  .timeline .tl-body{padding:16px 18px 20px;}
+  .timeline .card-title{font-size:20px;}
+  .timeline .tl-body p{font-size:16px;}
+
+  /* --- CTA --- */
+  .cta{min-height:84px;padding:18px 44px 18px 20px;}
+  .note{padding:16px 18px;font-size:16px;}
+
+  /* --- 画面下に固定するCTA --- */
+  /* 追従CTA。position:fixed だと最初の一画面から出てしまい、ヒーローの
+     「プロジェクトを見る」の上に重なる（360×640 で実際に重なっていた）。
+     ヒーロー直後から main の終わりまでを覆う .cta-rail の中に置き、
+     sticky にすると、要素は自分の含みブロックの上端より上へは動けない。
+     つまりヒーローを読み終えるまでは現れない。JSは要らない。
+
+     margin-bottom で自分の高さを打ち消しているのは、レールの先頭に
+     置いた分だけ以降のセクションが下がるのを避けるため。 */
+  .sticky-cta{
+    display:flex;align-items:center;justify-content:center;
+    position:sticky;bottom:14px;z-index:50;
+    margin:-54px 16px 0;
+    min-height:54px;border-radius:999px;
+    font-size:16.5px;font-weight:700;
+    background:var(--brand);color:#fff;
+    box-shadow:0 8px 24px rgba(4,18,40,.4);
+  }
+  @media (hover:hover){
+    .sticky-cta:hover{background:#fff;color:var(--brand);box-shadow:inset 0 0 0 2px var(--brand), 0 8px 24px rgba(4,18,40,.4);}
+  }
+}
+
+/* --- 390px 未満：もう一段詰める --- */
+@media (max-width:389px){
+  .wrap{width:min(100% - 24px, var(--wrap));}
+  .section{padding:52px 0;}
+  h2{font-size:22px;}
+  .hero-title{font-size:25px;}
+  .hero-nav a{flex:1 1 100%;}
+  .card{padding:18px 16px;}
+}
+
+/* ============================================================
+   ヒーローの縦横切り替えは「縦横比」で行う。
+   画面幅で判定するとタブレット縦置き（834×1112）が横長画像のままになり、
+   水平線や島が画面外へ出てしまう。
+   ============================================================ */
+/* 幅の条件を併記すること。縦横比だけで判定すると、5:4のデスクトップ
+   （1280×1024 = 比1.25）まで縦長画像に切り替わり、幅1265pxの枠に
+   縦長画像を cover するため上端の空しか出ず、船が1隻も見えなくなる。
+   縦長画像が要るのは「幅が狭くて縦に長い」画面だけ。 */
+/* スマホは横に倒しても縦構図のまま扱う。
+   全面の絵に本文を重ねる配置は、紙が画面の左半分に収まるだけの幅が
+   あって初めて成り立つ。横向きのスマホ（例 740×360）は幅が足りず、
+   本文が紙からはみ出して海の上に乗ってしまう。 */
+@media (max-aspect-ratio:13/10) and (max-width:1099px), (max-width:767px){
+  /* 縦画面には専用の縦長の絵を全面に敷く。
+
+     以前は船団の絵を下半分にだけ置き、本文の後ろはページの
+     グラデーションに任せていた。すると画面の上半分がただのクリーム色に
+     なり、「背景が無い」ように見えた（依頼主から指摘）。
+
+     絵は「紙 + 瀬戸内の夕景」で縦に構成されているので、そのまま全面に
+     敷けば、本文は紙の上、船団は下の海の上に収まる。船は絵に焼き込んで
+     ある（tools/build-hero-mobile.ps1）。cover は画面の縦横比によって
+     絵を切り取るので、CSSの % で船を置くと切り取りとずれて陸に乗り上げる。
+     絵の中に描いてあれば、絵と一緒に切り取られるので必ず海の上にいる。 */
+  /* 絵の縦横比（941:1672 ＝ 1:1.777）ぶんの高さを最低限として与える。
+     本文のほうが高ければ本文が勝つ（スマホ）。本文が低ければ絵の比率で
+     伸びて全体が入る（タブレット縦置き）。画面高の1.25倍で頭打ちにして
+     いるのは、ヒーローだけで2画面ぶんスクロールさせないため。 */
+  .hero{min-height:min(calc(100vw * 1672 / 941), calc(100svh * 0.95));}
+  .hero-art{
+    inset:0;width:100%;height:auto;
+    background-image:url('assets/img/backgrounds/hero-mobile.jpg');
+    /* 下端を基準にする。タブレット縦置きでは絵が縦にあふれるので、
+       上を基準にすると船団がまるごと画面外に出る。上端の余った紙を
+       切るほうが、絵としても本文の置き場としても都合がよい。
+       bottom ではなく 100% と書くのは、検証ツールが % を読むため。 */
+    background-position:50% 100%;
+    background-size:cover;
+    /* 縦の絵はもやを浅くしてある（要素の88%から）。1.25倍のマスクでの
+       位置は (0.88+0.25)/1.25 ＝ 90.4%。大きさ・位置・繰り返しは上の
+       .hero-art がそのまま効くので、ここは抜き始めだけを書き換える。 */
+    -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 90.4%,transparent 100%);
+            mask-image:linear-gradient(180deg,#000 0%,#000 90.4%,transparent 100%);
+  }
+  /* 縦画面の夜。こちらの絵には舟が描かれていない（依頼主から渡された
+     ままを使う）。寸法は昼と同じ 941:1672。
+
+     ただし紙が昼の絵とまったく違う。実測（4px刻みで走査）すると、
+     昼は y0.05〜0.70 のどこでも x0.00〜0.99 まで紙があるのに対し、
+     夜は上が広く下へ細る楔で、右端が y0.20 で 0.924、y0.45 で 0.613、
+     y0.60 では 0.400 しかない。
+     cover の切り取りは画面比で変わるため、位置指定をどう選んでも
+     すべての比率で本文を紙の内側に収めることはできない（実際に
+     834px で 1.16:1、767px で 1.03:1 まで落ちた）。
+     そこで夜の縦画面だけ、本文に紙と同じ色の下敷きを敷く。
+     絵の紙と重なる部分では見分けがつかず、はみ出した部分では
+     紙が延びたように見える。 */
+  .is-night .hero-art{
+    background-image:url('assets/img/backgrounds/hero-night-mobile.jpg');
+  }
+  /* 横長のときの「絵に合わせた配置」は縦画面では意味を持たない。
+     本文は画面の全幅を使う縦積みになるため、中央寄せの器と通常の余白へ
+     戻す。ここを戻し忘れると、タブレットの縦置き（834px）で本文だけが
+     左に寄り、幅も 41vw に潰れる。 */
+  .hero > .wrap{width:min(100% - 48px, var(--wrap));}
+  /* 本文が船団に掛からないだけの余白を下に取る。
+     絵は縦の 0.70 から下が船のいる海。cover は縦画面では高さに合わせて
+     拡大するので、画面上の 0.70×ヒーロー高 より下に本文を置かない。
+     余白を画面幅で持たせているのは、絵の拡大率が幅ではなく高さで決まる
+     ぶん、ヒーロー全体の高さを本文＋余白で作る必要があるため。 */
+  /* 余白を画面幅だけで決めると、幅の広いタブレットで 700px を超え、
+     ヒーローだけが伸びて以降のセクションがグラデーション上で下へずれる。
+     背景色は「ページ全高に対する%」で決まるので、中層の文字が濃い水に
+     乗ってコントラストが 2.6:1 まで落ちた。上限を付けて止める。 */
+  .hero-inner{padding:60px 0 min(92vw, 420px);}
+  .hero-panel{max-width:none;}
+  /* 夜の縦画面だけ、本文に紙と同じ色の下敷きを敷く（理由は .hero-art の
+     すぐ上に書いた）。色は絵の紙から採った。 */
+
+
+  /* ヒーロー内のページ内ナビは縦画面では出さない。
+     画面幅いっぱいのボタンが3つ並ぶと本文が船団の高さまで下がり、絵の
+     いちばん見せたい部分を覆ってしまう。縦画面には画面下の追従CTAと
+     フッターの目次があるので、導線としても重複している。 */
+  .hero-nav{display:none;}
+  /* ブランド名が「ト」1文字だけで折り返していた。1行に収める */
+  .hero-brand{flex-wrap:nowrap;}
+  .hero-brand span{font-size:clamp(17px,5.1vw,26px);white-space:nowrap;}
+  /* サブタイトルは行が長く、右端が紙から空へはみ出す。補助色のままだと
+     淡い水色の上で 2.45:1 まで落ちるので、本文色まで濃くする。 */
+  .hero-sub{color:var(--ink-deep);}
+}
+
+
+/* ============================================================
+   対象診断のポップアップ
+
+   <dialog> の既定の見た目（白地・黒枠・中央）は使わず、深海の
+   カードと同じ紺の紙に置き換える。ページの一番深い所から浮かんで
+   きた箱に見えるよう、金の枠と強い影で締める。
+   ============================================================ */
+.sprite{position:absolute;width:0;height:0;overflow:hidden;}
+
+/* ボタンの中に置くアイコン */
+.btn-ic{gap:.6em;}
+.btn-mark{width:1.35em;height:1.35em;flex:none;}
+
+.fc{
+  width:min(640px, 100vw - 32px);
+  max-height:min(88svh, 900px);
+  padding:0;border:0;border-radius:var(--r-lg);
+  background:transparent;
+  color:var(--paper);
+  overflow:visible;
+}
+.fc::backdrop{
+  background:rgba(3,14,32,.72);
+  backdrop-filter:blur(3px);
+}
+.fc-inner{
+  position:relative;
+  max-height:inherit;
+  overflow-y:auto;
+  padding:34px 34px 26px;
+  border-radius:var(--r-lg);
+  background:#0B2748;
+  box-shadow:
+    inset 0 0 0 1.5px rgba(var(--gold-rgb),.8),
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 30px 70px rgba(2,10,26,.6);
+}
+
+.fc-close{
+  position:absolute;top:12px;right:12px;
+  width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  border:0;border-radius:50%;
+  background:rgba(255,255,255,.08);color:var(--paper);
+  cursor:pointer;
+  transition:background-color .18s ease, color .18s ease;
+}
+.fc-close svg{width:20px;height:20px;}
+@media (hover:hover){ .fc-close:hover{background:var(--gold);color:var(--ink-deep);} }
+
+.fc-head{text-align:center;padding:0 44px;}
+.fc-mark{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:58px;height:58px;border-radius:50%;
+  background:rgba(var(--gold-rgb),.16);
+  box-shadow:inset 0 0 0 1.5px rgba(var(--gold-rgb),.7);
+  color:var(--gold);
+}
+.fc-mark svg{width:32px;height:32px;}
+.fc-eyebrow{
+  margin-top:.9em;
+  font-size:13px;font-weight:700;letter-spacing:.1em;
+  color:#F0E3C4;
+}
+.fc-title{
+  font-family:var(--serif);
+  font-size:clamp(20px,2.5vw,25px);
+  font-weight:600;line-height:1.5;margin-top:.3em;
+  color:#fff;
+}
+
+.fc-prog{
+  margin-top:1.6em;
+  font-size:13px;font-weight:700;letter-spacing:.08em;
+  color:var(--gold);
+  text-align:center;
+}
+
+.fc-step{border:0;padding:0;margin:1.1em 0 0;}
+.fc-q{
+  font-size:18px;font-weight:700;line-height:1.65;
+  color:#fff;
+  padding:0 0 .9em;
+  text-align:center;
+}
+
+/* 選択肢。ラジオの丸は隠さず、押せる面をラベル全体に広げる。
+   丸だけが当たり判定だと、指では狙いにくい。 */
+.fc-opt{
+  display:flex;align-items:center;gap:.85em;
+  min-height:56px;padding:12px 18px;margin-top:10px;
+  border-radius:var(--r-sm);cursor:pointer;
+  background:rgba(255,255,255,.06);
+  box-shadow:var(--ring);
+  font-size:16px;line-height:1.65;color:var(--paper);
+  transition:background-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.fc-opt input{
+  appearance:none;-webkit-appearance:none;
+  width:20px;height:20px;flex:none;margin:0;
+  border-radius:50%;
+  box-shadow:inset 0 0 0 2px rgba(var(--gold-rgb),.85);
+  background:transparent;
+  transition:background-color .16s ease, box-shadow .16s ease;
+}
+.fc-opt input:checked{
+  background:var(--gold);
+  box-shadow:inset 0 0 0 2px var(--gold), inset 0 0 0 5px #0B2748;
+}
+@media (hover:hover){
+  .fc-opt:hover{
+    background:rgba(var(--gold-rgb),.18);
+    box-shadow:var(--ring-strong);
+    transform:translateY(-2px);
+  }
+}
+.fc-opt:has(input:checked){
+  background:rgba(var(--gold-rgb),.22);
+  box-shadow:var(--ring-strong);
+}
+/* :has() が無いブラウザでも、フォーカスの輪だけは出る */
+.fc-opt input:focus-visible{outline:3px solid var(--gold);outline-offset:3px;}
+
+/* --- 結果 --- */
+.fc-result{margin-top:1.4em;text-align:center;}
+.fc-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:88px;height:88px;border-radius:50%;
+}
+.fc-badge svg{width:48px;height:48px;}
+/* 当てはまる：金で塗って一番強く。紺の線画で 8.6:1 */
+.fc-badge-fit{background:#DDBB6E;color:var(--ink-deep);box-shadow:0 10px 26px rgba(var(--gold-rgb),.34);}
+/* 可能性あり：紺地に金の線画。枠で締める */
+.fc-badge-maybe{background:rgba(var(--gold-rgb),.14);color:var(--gold);box-shadow:inset 0 0 0 2px rgba(var(--gold-rgb),.8);}
+/* 距離がある：主張を抑える。落ち着いた水色 */
+.fc-badge-far{background:rgba(255,255,255,.08);color:var(--paper-soft);box-shadow:inset 0 0 0 2px rgba(214,231,242,.45);}
+
+.fc-verdict{
+  font-family:var(--serif);
+  font-size:clamp(19px,2.4vw,23px);
+  font-weight:600;line-height:1.55;margin-top:.7em;
+  color:#fff;
+}
+.fc-verdict:focus-visible{outline:3px solid var(--gold);outline-offset:6px;border-radius:6px;}
+.fc-detail{
+  font-size:15.5px;line-height:1.9;margin-top:.8em;
+  color:var(--paper-soft);
+  text-align:left;
+}
+.fc-actions{
+  display:flex;flex-wrap:wrap;gap:12px;justify-content:center;
+  margin-top:1.8em;
+}
+.fc-actions .btn{flex:1 1 auto;min-width:200px;}
+
+/* --- 下段 --- */
+.fc-foot{margin-top:1.6em;padding-top:1.2em;border-top:1px solid rgba(var(--gold-rgb),.28);}
+.fc-back{
+  min-height:44px;padding:0 18px;
+  border:0;border-radius:999px;cursor:pointer;
+  background:rgba(255,255,255,.08);color:var(--paper);
+  font-size:14px;font-weight:700;font-family:inherit;
+  transition:background-color .18s ease, color .18s ease;
+}
+@media (hover:hover){ .fc-back:hover{background:var(--gold);color:var(--ink-deep);} }
+.fc-note{
+  margin-top:1em;
+  font-size:13px;line-height:1.8;color:var(--paper-soft);
+}
+
+@media (max-width:520px){
+  .fc-inner{padding:26px 20px 20px;}
+  .fc-head{padding:0 36px;}
+  .fc-detail{font-size:15px;}
+  .fc-actions .btn{min-width:0;width:100%;}
+}
+
+
+/* ============================================================
+   モーション低減
+   生き物の動き、hover の transition、ページ内の smooth scroll を止める。
+   1万px級のページ内スクロールを滑らせるのは負荷も大きい。
+   生き物は animation を切っても transform の初期値（向きの反転）は
+   残るので、配置が崩れることはない。
+   ============================================================ */
+/* 昼夜の切り替えに transition を掛けてはいけない。
+
+   一度 `color .7s` を掛けたら、中層の見出しが夜になっても昼の色のまま
+   固まった。原因は color の値が var(--mid-ink) で、その変数自体が
+   .is-night で入れ替わること。変数が変わる形の transition は開始値の
+   まま止まり、いつまでも目標値へ動かない（transition:none にした
+   とたん正しい色になることを実測して確かめた）。
+
+   面の入れ替わりは一瞬で済ませる。カードのホバーの transition は
+   それぞれの規則が持っているので、ここで足すものは無い。 */
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto;}
+  *{transition:none !important;}
+}
+
+/* ============================================================
+   応募受付のワッペン（依頼主 2026-10-14）
+
+   「10月31日（土）まで応募受付中！」を、キービジュアルの中に縫い付けた
+   丸いワッペンとして置く。全体が参加申込フォームへのリンク。
+
+   世界観に合わせて、紺の地・金の縁・内側に金の縫い目（破線）。
+   船の帆や旗と同じく少し傾けて、絵の中に「貼ってある」ように見せる。
+
+   置き場所は主メッセージ（紙の上の見出し）を避ける：
+     横長の絵 … 右上の空。船団より上、見出しとは画面の反対側。
+     縦長の絵 … 見出しの右。見出しの行はどれも右端まで届かないので、
+                その余白に収まる。スマホ（767px以下）は見出しの上の帯、
+                メニューボタンの左隣。
+   ============================================================ */
+/* 横長の絵：右上のページ内ナビの下に縦に積む。ナビと同じ列にいれば、
+   ナビの幅や位置が画面幅で変わっても重ならない。 */
+.hero-side{
+  display:flex;flex-direction:column;align-items:center;gap:clamp(22px,2.4vw,36px);
+  flex:none;align-self:flex-start;
+}
+.hero-badge{
+  position:relative;z-index:3;
+  width:clamp(132px, 11vw, 166px);aspect-ratio:1;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;
+  color:#fff;text-decoration:none;text-align:center;
+  /* 地の色も必ず置く。グラデーションだけだと背景色が透明のままになり、
+     色を読んで判定する道具（check.js）が下の絵の色で測ってしまう。 */
+  background-color:var(--ink-deep);
+  background-image:radial-gradient(circle at 38% 30%, #183C6E 0%, var(--ink-deep) 62%, #061733 100%);
+  box-shadow:
+    0 0 0 3px var(--gold),
+    0 0 0 6px rgba(244,236,214,.9),
+    0 12px 28px rgba(3,14,32,.38);
+  transform:rotate(-8deg);
+  transition:transform .2s ease, box-shadow .2s ease;
+}
+/* 内側の縫い目 */
+.hero-badge::before{
+  content:'';position:absolute;inset:7px;border-radius:50%;
+  border:1.6px dashed rgba(var(--gold-rgb),.85);
+  pointer-events:none;
+}
+.hb-in{display:flex;flex-direction:column;align-items:center;line-height:1.15;}
+.hb-date{font-family:var(--serif);font-weight:700;font-size:clamp(14px,1.15vw,17px);color:var(--gold);white-space:nowrap;}
+.hb-dow{font-size:.78em;}
+.hb-until{font-size:clamp(12px,.95vw,14px);font-weight:700;color:var(--gold);margin-top:.15em;}
+.hb-main{
+  font-family:var(--serif);font-weight:700;
+  font-size:clamp(21px,1.8vw,27px);line-height:1.2;letter-spacing:.04em;
+  margin-top:.3em;color:#fff;
+}
+@media (hover:hover){
+  .hero-badge:hover{
+    transform:rotate(0) scale(1.05);
+    box-shadow:0 0 0 3px var(--gold),0 0 0 6px rgba(244,236,214,.95),0 0 26px rgba(var(--gold-rgb),.55),0 14px 30px rgba(3,14,32,.4);
+  }
+}
+.hero-badge:focus-visible{outline:3px solid var(--gold);outline-offset:8px;}
+
+/* 縦長の絵（タブレット縦・スマホ）：見出しの右へ */
+@media (max-aspect-ratio:13/10) and (max-width:1099px), (max-width:767px){
+  /* ナビは出さない形なので、列ごと外して見出しの右に浮かせる。
+     基準は .hero-inner（position:relative）。 */
+  .hero-side{display:contents;}
+  .hero-badge{position:absolute;top:clamp(96px, 13vw, 150px);right:4vw;width:clamp(116px, 18vw, 156px);}
+  .hb-date{font-size:clamp(12px,1.8vw,16px);}
+  .hb-until{font-size:clamp(10.5px,1.5vw,13px);}
+  .hb-main{font-size:clamp(17px,2.9vw,25px);}
+}
+@media (max-width:767px){
+  /* 見出しの上の余白、メニューボタン（右上）の左隣に置く。
+     見出しの右に置くと、3行目「越えられる波がある。」の行末に掛かった
+     （390px・360px で実測）。見出しは画面の上から 120px で始まり、
+     基準の .hero-inner はヒーローの padding-top（60px）ぶん下から始まる。
+     なので top は負の値にして、画面の上端〜見出しの間の帯に収める。 */
+  .hero-badge{top:-52px;right:48px;width:98px;transform:rotate(-6deg);}
+  .hero-badge::before{inset:6px;}
+  .hb-date{font-size:11.5px;}
+  .hb-until{font-size:10px;}
+  .hb-main{font-size:16px;}
+}
+@media (max-width:389px){
+  .hero-badge{width:92px;top:-38px;right:46px;}
+  .hb-date{font-size:10.5px;}
+  .hb-main{font-size:15px;}
+}
+
+/* 入りは見出しが出そろってから、判子を押すように一度だけ */
+@media (prefers-reduced-motion:no-preference){
+  .hero-badge{animation:badge-in .55s cubic-bezier(.2,1.4,.4,1) 1.1s backwards;}
+  @keyframes badge-in{
+    from{opacity:0;transform:rotate(-8deg) scale(1.35);}
+    to{opacity:1;transform:rotate(-8deg) scale(1);}
+  }
+}
+@media (prefers-reduced-motion:no-preference) and (max-width:767px){
+  .hero-badge{animation-name:badge-in-sp;}
+  @keyframes badge-in-sp{
+    from{opacity:0;transform:rotate(-6deg) scale(1.35);}
+    to{opacity:1;transform:rotate(-6deg) scale(1);}
+  }
+}
+
+/* ============================================================
+   印刷
+   ============================================================ */
+@media print{
+  body::before,body::after,.sticky-cta,.menu,.hero-art{display:none;}
+  .card{box-shadow:none;border:1px solid #999;}
+  /* 個別に上書きすると詳細度の高いルール（.tier-deep .card p など）が
+     残り、白紙に薄い水色で印刷されてしまう。まとめて黒に倒す。 */
+  .tier-deep,.tier-deep *{color:#000 !important;background:transparent !important;}
+  .num,.cta-badge{border:1px solid #666;}
+}
